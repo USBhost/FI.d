@@ -1,0 +1,15 @@
+#!/system/bin/sh
+
+# this 'FI.d' folder
+# is meant for values that dont stay at boot
+# because the system overwrites them just after bootup.
+# so to fix this, is to apply a wait time before it executes.
+# wake lock is needed because if the system suspends
+# FI.d/init.d scripts wont execute.
+	echo tmp_lock > /sys/power/wake_lock
+# mount cache
+	busybox mount -t auto -o rw,noatime,defaults /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache
+# start init.d
+	busybox run-parts /system/etc/init.d/
+# set wait time
+	sleep 60
