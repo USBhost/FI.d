@@ -1,16 +1,16 @@
 #!/system/bin/sh
 # this is a W.I.P. script.
 
-# enable OC'ing
+# overclocking.
 ## (0 = disabled) (1 = enabled)
 	OC=0
 
 # CPU Interactive Governor fix.
 	echo 612000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
-# lock them now
-	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
-	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
+	# lock them now.
+		chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+		chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 
 # fsync.
 ## (0 = disabled) (1 = enabled)
@@ -35,37 +35,40 @@
 
 # config swap.
 	echo 60 > /proc/sys/vm/swappiness
-	#echo 1 > /proc/sys/vm/page-cluster
+	echo 0 > /proc/sys/vm/extra_free_kbytes
+	#echo 3 > /proc/sys/vm/page-cluster
 
-# Low Memory Killer config for swap
+# Low Memory Killer config for swap.
 	echo "17920,20480,23040,25600,28160,30720" > /sys/module/lowmemorykiller/parameters/minfree
 
-# ZRAM
+# ZRAM (ONLY!)
 ## (0 = disabled) (1 = enabled)
 # zswap and aswap must be disabled.
-# zsize is how big zram will be.
-# it's in MB.
+# you can use cswap but it will be
+# in second priority.
+# zsize is in MB.
 	zram=0
 	zsize=0
 
 # cache swap
 ## (0 = disabled) (1 = enabled)
-# it will make a 130mb swap file
-# in /cache named swap
+# will make a swap file in /cache.
 # czsize must not go over 150
 # or f2fs /cache wont work.
-# it's in MB.
+# czsize is in MB.
 	cswap=1
 	czsize=130
+
+# make /cache all swap
+## (0 = disabled) (1 = enabled)
+# cswap and czsize will be null
+# if enabled. swap will be 260 MB.
+	aswap=0
 
 # use zram with cache
 ## (0 = disabled) (1 = enabled)
 # with a raid 0 like way.
 	zswap=1
-
-# make cache all swap
-## (0 = disabled) (1 = enabled)
-	aswap=0
 
 #   ------------------------<EXPERT>-----------------------   #
 
@@ -88,7 +91,6 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 		swapon -p 1 /cache/swap
 	fi
 	if [ "$zswap" == "1" ]; then
-		swapoff /dev/block/zram0
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$czsize"M > /sys/block/zram0/disksize
@@ -100,10 +102,8 @@ if [ "$aswap" == "1" ]; then
 	umount /cache
 	busybox mount -t tmpfs -o rw,noatime tmpfs /cache
 	mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	swapoff /dev/block/zram0
 	swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zswap" == "1" ]; then
-		swapoff /dev/block/zram0
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
@@ -124,8 +124,6 @@ fi
 if [ "$OC" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
 elif [ "$OC" == "0" ]; then
-	# there's no reason to have the gpu
-	# speed set so high, so lets make it slower.
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
 	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
 fi
