@@ -1,4 +1,9 @@
 #!/system/bin/sh
+#
+# W.I.P. script, made by USBhost.
+# for this script to work you need busbox.
+# made for the Nexus 9.
+#
 
 # resume suspend
 	echo 1 > /sys/class/htc_sensorhub/sensor_hub/led_en

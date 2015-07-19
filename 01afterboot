@@ -1,5 +1,9 @@
 #!/system/bin/sh
-# this is a W.I.P. script.
+#
+# W.I.P. script, made by USBhost.
+# for this script to work you need busbox.
+# made for the Nexus 9.
+#
 
 # overclocking.
 ## (0 = disabled) (1 = enabled)
@@ -8,9 +12,9 @@
 # CPU Interactive Governor fix.
 	echo 612000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
-	# lock them now.
-		chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
-		chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
+	# lock.
+	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 
 # fsync.
 ## (0 = disabled) (1 = enabled)
@@ -24,7 +28,7 @@
 # if disabled you will get problems with sleep.
 	#echo 0 > /sys/devices/platform/spi-tegra114.2/spi_master/spi2/spi2.0/input/input0/wake_gesture
 
-# debug set to NO.
+# set debug to NO.
 	echo N > /sys/kernel/debug/debug_enabled
 
 #   ------------------------<MEMORY>-----------------------   #
@@ -35,10 +39,9 @@
 
 # config swap.
 	echo 60 > /proc/sys/vm/swappiness
-	echo 0 > /proc/sys/vm/extra_free_kbytes
-	#echo 3 > /proc/sys/vm/page-cluster
+	echo 3 > /proc/sys/vm/page-cluster
 
-# Low Memory Killer config for swap.
+# config Low Memory Killer.
 	echo "17920,20480,23040,25600,28160,30720" > /sys/module/lowmemorykiller/parameters/minfree
 
 # ZRAM (ONLY!)
