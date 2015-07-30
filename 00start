@@ -13,7 +13,7 @@
 # FI.d/init.d scripts may not execute.
 	echo tmp_lock > /sys/power/wake_lock
 # mount cache
-	busybox mount -t auto -o rw,noatime,defaults /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache
+	busybox mount -t ext4 -o rw,noatime,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || busybox mount -t auto -o rw,noatime,defaults /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache
 # start init.d
 	busybox run-parts /system/etc/init.d/
 # set wait time

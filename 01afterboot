@@ -84,7 +84,7 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 		chmod 1777 /cache/swap
 		mkswap /cache/swap
 	else
-		dd if=/dev/zero of=/cache/swap bs=1m count=$czsize
+		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
 		chmod 1777 /cache/swap
 		mkswap /cache/swap
 	fi
