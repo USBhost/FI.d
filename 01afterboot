@@ -82,10 +82,12 @@ if [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zswap" == "0" ] && [ -e /ca
 elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		chmod 1777 /cache/swap
+		fstrim -v /cache || log -p i -t FI.d " fstrim faild "
 		mkswap /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
 		chmod 1777 /cache/swap
+		fstrim -v /cache || log -p i -t FI.d " fstrim faild "
 		mkswap /cache/swap
 	fi
 	if [ "$zram" == "1" ]; then
