@@ -38,7 +38,7 @@
 	echo 1 > /sys/kernel/mm/uksm/run
 
 # config swap.
-	echo 60 > /proc/sys/vm/swappiness
+	echo 80 > /proc/sys/vm/swappiness
 	echo 3 > /proc/sys/vm/page-cluster
 
 # config Low Memory Killer.
@@ -46,7 +46,7 @@
 
 # ZRAM (ONLY!)
 ## (0 = disabled) (1 = enabled)
-# zswap and aswap must be disabled.
+# zrswap and aswap must be disabled.
 # you can use cswap but it will be
 # in second priority.
 # zsize is in MB.
@@ -62,6 +62,12 @@
 	cswap=1
 	czsize=130
 
+# compressed cache swap file
+## (0 = disabled) (1 = enabled)
+# pages that are in the process of being 
+# swapped then attempts to compress them.
+	zswap=1
+
 # make /cache all swap
 ## (0 = disabled) (1 = enabled)
 # cswap and czsize will be null
@@ -71,11 +77,11 @@
 # use zram with cache
 ## (0 = disabled) (1 = enabled)
 # with a raid 0 like way.
-	zswap=1
+	zrswap=1
 
 #   ------------------------<EXPERT>-----------------------   #
 
-if [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zswap" == "0" ] && [ -e /cache/swap ]; then
+if [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ] && [ -e /cache/swap ]; then
 	chmod 1777 /cache/swap
 	mkswap /cache/swap
 	swapon -p 1 /cache/swap
@@ -95,7 +101,7 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	else
 		swapon -p 1 /cache/swap
 	fi
-	if [ "$zswap" == "1" ]; then
+	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$czsize"M > /sys/block/zram0/disksize
@@ -108,7 +114,7 @@ if [ "$aswap" == "1" ]; then
 	busybox mount -t tmpfs -o rw,noatime tmpfs /cache
 	mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	if [ "$zswap" == "1" ]; then
+	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
@@ -116,15 +122,21 @@ if [ "$aswap" == "1" ]; then
 		swapon -p 1 /dev/block/zram0
 	fi
 fi
-if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zswap" == "0" ] && [ "$aswap" == "0" ]; then
+if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	chmod 777 /cache/swap
 	rm /cache/swap
-elif [ "$zram" == "1" ] && [ "$zswap" == "0" ] && [ "$aswap" == "0" ]; then
+elif [ "$zram" == "1" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
 	echo lz4 > /sys/block/zram0/comp_algorithm
 	echo "$zsize"M > /sys/block/zram0/disksize
 	mkswap /dev/block/zram0
 	swapon -p 1 /dev/block/zram0
+fi
+if [ "$zswap" == "1" ]; then
+	chmod 755 /sys/module/zswap/parameters/enabled
+	chmod 755 /sys/module/zswap/parameters/compressor
+	echo lz4 > /sys/module/zswap/parameters/compressor
+	echo 1 > /sys/module/zswap/parameters/enabled
 fi
 if [ "$OC" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
