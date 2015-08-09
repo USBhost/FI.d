@@ -38,11 +38,13 @@
 	echo 1 > /sys/kernel/mm/uksm/run
 
 # config swap.
-	echo 80 > /proc/sys/vm/swappiness
-	echo 3 > /proc/sys/vm/page-cluster
+	echo 10000 > /proc/sys/vm/min_free_kbytes
+	echo 60 > /proc/sys/vm/swappiness
+	echo 1 > /proc/sys/vm/page-cluster
+	echo 0 >/proc/sys/vm/extra_free_kbytes
 
 # config Low Memory Killer.
-	echo "17920,20480,23040,25600,28160,30720" > /sys/module/lowmemorykiller/parameters/minfree
+	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
 # ZRAM (ONLY!)
 ## (0 = disabled) (1 = enabled)
@@ -60,19 +62,21 @@
 # or f2fs /cache wont work.
 # czsize is in MB.
 	cswap=1
-	czsize=130
-
-# compressed cache swap file
-## (0 = disabled) (1 = enabled)
-# pages that are in the process of being 
-# swapped then attempts to compress them.
-	zswap=1
+	czsize=100
 
 # make /cache all swap
 ## (0 = disabled) (1 = enabled)
 # cswap and czsize will be null
 # if enabled. swap will be 260 MB.
 	aswap=0
+
+# compressed cache swap file.
+## this may not work, 
+## i dont even think it does.
+## (0 = disabled) (1 = enabled)
+# pages that are in the process of being 
+# swapped then attempts to compress them.
+	zswap=0
 
 # use zram with cache
 ## (0 = disabled) (1 = enabled)
@@ -88,12 +92,12 @@ if [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ] && [ -e /c
 elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		chmod 1777 /cache/swap
-		fstrim -v /cache || log -p i -t FI.d " fstrim faild "
+		fstrim -v /cache
 		mkswap /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
 		chmod 1777 /cache/swap
-		fstrim -v /cache || log -p i -t FI.d " fstrim faild "
+		fstrim -v /cache
 		mkswap /cache/swap
 	fi
 	if [ "$zram" == "1" ]; then
@@ -111,7 +115,7 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 fi
 if [ "$aswap" == "1" ]; then
 	umount /cache
-	busybox mount -t tmpfs -o rw,noatime tmpfs /cache
+	busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " mounted as tmpfs "
 	mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
