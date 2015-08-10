@@ -1,8 +1,9 @@
 #!/system/bin/sh
+log -p i -t FI.d " working "
 #
 # W.I.P. script, made by USBhost.
-# for this script to work you need busbox.
-# made for the Nexus 9.
+# for this script to work you need busbox
+# if not supplied. made for the Nexus 9.
 #
 
 # overclocking.
@@ -87,43 +88,43 @@
 
 if [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ] && [ -e /cache/swap ]; then
 	chmod 1777 /cache/swap
-	mkswap /cache/swap
-	swapon -p 1 /cache/swap
+	/sbin/busybox mkswap /cache/swap
+	/sbin/busybox swapon -d -p 1 /cache/swap
 elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		chmod 1777 /cache/swap
-		fstrim -v /cache
-		mkswap /cache/swap
+		/sbin/busybox fstrim -v /cache
+		/sbin/busybox mkswap /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
 		chmod 1777 /cache/swap
-		fstrim -v /cache
-		mkswap /cache/swap
+		/sbin/busybox fstrim -v /cache
+		/sbin/busybox mkswap /cache/swap
 	fi
 	if [ "$zram" == "1" ]; then
-		swapon -p 2 /cache/swap
+		/sbin/busybox swapon -d -p 2 /cache/swap
 	else
-		swapon -p 1 /cache/swap
+		/sbin/busybox swapon -d -p 1 /cache/swap
 	fi
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$czsize"M > /sys/block/zram0/disksize
-		mkswap /dev/block/zram0
-		swapon -p 1 /dev/block/zram0
+		/sbin/busybox mkswap /dev/block/zram0
+		/sbin/busybox swapon -d -p 1 /dev/block/zram0
 	fi
 fi
 if [ "$aswap" == "1" ]; then
 	umount /cache
-	busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " mounted as tmpfs "
-	mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	/sbin/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " mounted as tmpfs "
+	/sbin/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	/sbin/busybox swapon -d -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
-		mkswap /dev/block/zram0
-		swapon -p 1 /dev/block/zram0
+		/sbin/busybox mkswap /dev/block/zram0
+		/sbin/busybox swapon -d -p 1 /dev/block/zram0
 	fi
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
@@ -133,8 +134,8 @@ elif [ "$zram" == "1" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
 	echo lz4 > /sys/block/zram0/comp_algorithm
 	echo "$zsize"M > /sys/block/zram0/disksize
-	mkswap /dev/block/zram0
-	swapon -p 1 /dev/block/zram0
+	/sbin/busybox mkswap /dev/block/zram0
+	/sbin/busybox swapon -d -p 1 /dev/block/zram0
 fi
 if [ "$zswap" == "1" ]; then
 	chmod 755 /sys/module/zswap/parameters/enabled

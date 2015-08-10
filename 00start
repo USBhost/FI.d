@@ -1,8 +1,8 @@
 #!/system/bin/sh
 #
 # W.I.P. script, made by USBhost.
-# for this script to work you need busbox.
-# made for the Nexus 9.
+# for this script to work you need busbox
+# if not supplied. made for the Nexus 9.
 #
 
 # the 'FI.d' folder
@@ -13,8 +13,8 @@
 # FI.d/init.d scripts may not execute.
 	echo tmp_lock > /sys/power/wake_lock && log -p i -t FI.d " started "
 # mount cache
-	busybox mount -t ext4 -o rw,noatime,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || busybox mount -t auto -o rw,noatime,defaults /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || log -p i -t FI.d " cache mount faild "
+	/sbin/busybox mount -t ext4 -o rw,noatime,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || /sbin/busybox mount -t auto -o rw,noatime,defaults /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache
 # start init.d
-	busybox run-parts /system/etc/init.d/
+	busybox run-parts /system/etc/init.d
 # set wait time
 	log -p i -t FI.d " wait 1min " && sleep 60

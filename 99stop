@@ -1,8 +1,8 @@
 #!/system/bin/sh
 #
 # W.I.P. script, made by USBhost.
-# for this script to work you need busbox.
-# made for the Nexus 9.
+# for this script to work you need busbox
+# if not supplied. made for the Nexus 9.
 #
 
 # resume suspend
