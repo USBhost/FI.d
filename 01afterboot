@@ -40,8 +40,8 @@ log -p i -t FI.d " working "
 
 # config swap.
 	echo 10000 > /proc/sys/vm/min_free_kbytes
-	echo 60 > /proc/sys/vm/swappiness
-	echo 1 > /proc/sys/vm/page-cluster
+	echo 80 > /proc/sys/vm/swappiness
+	echo 0 > /proc/sys/vm/page-cluster
 	echo 0 >/proc/sys/vm/extra_free_kbytes
 
 # config Low Memory Killer.
@@ -88,43 +88,43 @@ log -p i -t FI.d " working "
 
 if [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ] && [ -e /cache/swap ]; then
 	chmod 1777 /cache/swap
-	/sbin/busybox mkswap /cache/swap
-	/sbin/busybox swapon -d -p 1 /cache/swap
+	/BB/busybox mkswap /cache/swap
+	/BB/busybox swapon -d -p 1 /cache/swap
 elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		chmod 1777 /cache/swap
-		/sbin/busybox fstrim -v /cache
-		/sbin/busybox mkswap /cache/swap
+		/BB/busybox fstrim -v /cache
+		/BB/busybox mkswap /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
 		chmod 1777 /cache/swap
-		/sbin/busybox fstrim -v /cache
-		/sbin/busybox mkswap /cache/swap
+		/BB/busybox fstrim -v /cache
+		/BB/busybox mkswap /cache/swap
 	fi
 	if [ "$zram" == "1" ]; then
-		/sbin/busybox swapon -d -p 2 /cache/swap
+		/BB/busybox swapon -d -p 2 /cache/swap
 	else
-		/sbin/busybox swapon -d -p 1 /cache/swap
+		/BB/busybox swapon -d -p 1 /cache/swap
 	fi
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$czsize"M > /sys/block/zram0/disksize
-		/sbin/busybox mkswap /dev/block/zram0
-		/sbin/busybox swapon -d -p 1 /dev/block/zram0
+		/BB/busybox mkswap /dev/block/zram0
+		/BB/busybox swapon -d -p 1 /dev/block/zram0
 	fi
 fi
 if [ "$aswap" == "1" ]; then
 	umount /cache
-	/sbin/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " mounted as tmpfs "
-	/sbin/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	/sbin/busybox swapon -d -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	/BB/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " mounted as tmpfs "
+	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	/BB/busybox swapon -d -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
-		/sbin/busybox mkswap /dev/block/zram0
-		/sbin/busybox swapon -d -p 1 /dev/block/zram0
+		/BB/busybox mkswap /dev/block/zram0
+		/BB/busybox swapon -d -p 1 /dev/block/zram0
 	fi
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
@@ -134,8 +134,8 @@ elif [ "$zram" == "1" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
 	echo lz4 > /sys/block/zram0/comp_algorithm
 	echo "$zsize"M > /sys/block/zram0/disksize
-	/sbin/busybox mkswap /dev/block/zram0
-	/sbin/busybox swapon -d -p 1 /dev/block/zram0
+	/BB/busybox mkswap /dev/block/zram0
+	/BB/busybox swapon -d -p 1 /dev/block/zram0
 fi
 if [ "$zswap" == "1" ]; then
 	chmod 755 /sys/module/zswap/parameters/enabled
