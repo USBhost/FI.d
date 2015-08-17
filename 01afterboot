@@ -32,6 +32,15 @@ log -p i -t FI.d " working "
 # set debug to NO.
 	echo N > /sys/kernel/debug/debug_enabled
 
+# I/O tweaks
+	echo 0 > /sys/block/mmcblk0/queue/add_random
+	echo 768 > /sys/block/mmcblk0/queue/read_ahead_kb
+
+# config cfq i/o gov for ssds / historic record, we dont use cfq anymore
+	#echo 0 > /sys/block/mmcblk0/queue/iosched/slice_idle
+	#echo 64 > /sys/block/mmcblk0/queue/iosched/quantum
+	#echo 1 > /sys/block/mmcblk0/queue/iosched/group_idle
+
 #   ------------------------<MEMORY>-----------------------   #
 
 # Ultra Kernel Samepage Merging
@@ -40,18 +49,19 @@ log -p i -t FI.d " working "
 
 # config swap.
 	echo 10000 > /proc/sys/vm/min_free_kbytes
-	echo 80 > /proc/sys/vm/swappiness
+	echo 100 > /proc/sys/vm/vfs_cache_pressure
+	echo 60 > /proc/sys/vm/swappiness
 	echo 0 > /proc/sys/vm/page-cluster
 	echo 0 >/proc/sys/vm/extra_free_kbytes
 
 # config Low Memory Killer.
-	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
+	#echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
-# ZRAM (ONLY!)
+# ZRAM
+# zrswap and aswap will be made null.
 ## (0 = disabled) (1 = enabled)
-# zrswap and aswap must be disabled.
-# you can use cswap but it will be
-# in second priority.
+# you can still use cswap but it
+# will be second priority.
 # zsize is in MB.
 	zram=0
 	zsize=0
@@ -66,9 +76,9 @@ log -p i -t FI.d " working "
 	czsize=100
 
 # make /cache all swap
-## (0 = disabled) (1 = enabled)
 # cswap and czsize will be null
-# if enabled. swap will be 260 MB.
+## (0 = disabled) (1 = enabled)
+# swap will be 260 MB.
 	aswap=0
 
 # compressed cache swap file.
@@ -79,63 +89,65 @@ log -p i -t FI.d " working "
 # swapped then attempts to compress them.
 	zswap=0
 
-# use zram with cache
+# null if zram is enabled
 ## (0 = disabled) (1 = enabled)
+# use zram with cache
 # with a raid 0 like way.
 	zrswap=1
 
 #   ------------------------<EXPERT>-----------------------   #
 
-if [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ] && [ -e /cache/swap ]; then
-	chmod 1777 /cache/swap
+if [ -e /cache/swap ] && [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ]; then
+	chmod 600 /cache/swap
 	/BB/busybox mkswap /cache/swap
-	/BB/busybox swapon -d -p 1 /cache/swap
+	if [ "$zram" == "1" ]; then
+		/BB/busybox swapon -d -p 1 /cache/swap
+	else
+		/BB/busybox swapon -d -p 2 /cache/swap
+	fi
 elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
-		chmod 1777 /cache/swap
+		chmod 600 /cache/swap
 		/BB/busybox fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
-		chmod 1777 /cache/swap
+		chmod 600 /cache/swap
 		/BB/busybox fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 	fi
-	if [ "$zram" == "1" ]; then
-		/BB/busybox swapon -d -p 2 /cache/swap
-	else
+	if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
 		/BB/busybox swapon -d -p 1 /cache/swap
+	else
+		/BB/busybox swapon -d -p 2 /cache/swap
 	fi
-	if [ "$zrswap" == "1" ]; then
+	if [ "$zrswap" == "1" ] && [ "$zram" == "0" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$czsize"M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
-		/BB/busybox swapon -d -p 1 /dev/block/zram0
+		/BB/busybox swapon -d -p 2 /dev/block/zram0
 	fi
 fi
-if [ "$aswap" == "1" ]; then
+if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	umount /cache
-	/BB/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " mounted as tmpfs "
+	/BB/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " cache mounted as tmpfs "
 	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	/BB/busybox swapon -d -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	/BB/busybox swapon -d -p 2 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
-		/BB/busybox swapon -d -p 1 /dev/block/zram0
+		/BB/busybox swapon -d -p 2 /dev/block/zram0
 	fi
 fi
-if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
-	chmod 777 /cache/swap
-	rm /cache/swap
-elif [ "$zram" == "1" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
+if [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
 	echo lz4 > /sys/block/zram0/comp_algorithm
 	echo "$zsize"M > /sys/block/zram0/disksize
 	/BB/busybox mkswap /dev/block/zram0
-	/BB/busybox swapon -d -p 1 /dev/block/zram0
+	/BB/busybox swapon -d -p 2 /dev/block/zram0
 fi
 if [ "$zswap" == "1" ]; then
 	chmod 755 /sys/module/zswap/parameters/enabled
@@ -149,4 +161,7 @@ elif [ "$OC" == "0" ]; then
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
 	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
 fi
+if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
+	rm /cache/swap || chmod 777 /cache/swap && rm /cache/swap
+fi # this must allways be last
 	
