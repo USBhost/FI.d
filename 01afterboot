@@ -45,11 +45,11 @@ log -p i -t FI.d " working "
 	echo 1 > /sys/kernel/mm/uksm/run
 
 # config swap.
-	echo 10000 > /proc/sys/vm/min_free_kbytes
+	echo 10000 > /proc/sys/vm/extra_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
 	echo 0 > /proc/sys/vm/page-cluster
-	echo 0 >/proc/sys/vm/extra_free_kbytes
+	echo 0 > /proc/sys/vm/min_free_kbytes
 
 # config Low Memory Killer / historic record, let system control it
 	#echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
@@ -77,14 +77,6 @@ log -p i -t FI.d " working "
 ## (0 = disabled) (1 = enabled)
 # swap will be 260 MB.
 	aswap=0
-
-# compressed cache swap file.
-## this may not work, 
-## i dont even think it does.
-## (0 = disabled) (1 = enabled)
-# pages that are in the process of being 
-# swapped then attempts to compress them.
-	zswap=0
 
 # null if zram is enabled
 ## (0 = disabled) (1 = enabled)
@@ -119,7 +111,9 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 		/BB/busybox swapon -d -p 2 /cache/swap
 	fi
 	if [ "$zrswap" == "1" ] && [ "$zram" == "0" ]; then
+		/BB/busybox swapoff /dev/block/zram0
 		echo 1 > /sys/block/zram0/reset
+		echo 3 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$czsize"M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
@@ -132,7 +126,9 @@ if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	/BB/busybox swapon -d -p 2 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
+		/BB/busybox swapoff /dev/block/zram0
 		echo 1 > /sys/block/zram0/reset
+		echo 3 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
@@ -140,17 +136,13 @@ if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	fi
 fi
 if [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
+	/BB/busybox swapoff /dev/block/zram0
 	echo 1 > /sys/block/zram0/reset
+	echo 3 > /sys/block/zram0/max_comp_streams
 	echo lz4 > /sys/block/zram0/comp_algorithm
 	echo "$zsize"M > /sys/block/zram0/disksize
 	/BB/busybox mkswap /dev/block/zram0
 	/BB/busybox swapon -d -p 2 /dev/block/zram0
-fi
-if [ "$zswap" == "1" ]; then
-	chmod 755 /sys/module/zswap/parameters/enabled
-	chmod 755 /sys/module/zswap/parameters/compressor
-	echo lz4 > /sys/module/zswap/parameters/compressor
-	echo 1 > /sys/module/zswap/parameters/enabled
 fi
 if [ "$OC" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
@@ -163,8 +155,6 @@ if [ "$Gfix" == "1" ]; then
 	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
 	#chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	#chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
-else
-	log -p i -t FI.d " Gfix = $Gfix "
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	rm /cache/swap || chmod 777 /cache/swap && rm /cache/swap
