@@ -11,11 +11,8 @@ log -p i -t FI.d " working "
 	OC=0
 
 # CPU Interactive Governor fix.
-	echo 612000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
-	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
-	# lock.
-	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
-	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
+## (0 = disabled) (1 = enabled)
+	Gfix=0
 
 # fsync.
 ## (0 = disabled) (1 = enabled)
@@ -54,7 +51,7 @@ log -p i -t FI.d " working "
 	echo 0 > /proc/sys/vm/page-cluster
 	echo 0 >/proc/sys/vm/extra_free_kbytes
 
-# config Low Memory Killer.
+# config Low Memory Killer / historic record, let system control it
 	#echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
 # ZRAM
@@ -72,7 +69,7 @@ log -p i -t FI.d " working "
 # czsize must not go over 150
 # or f2fs /cache wont work.
 # czsize is in MB.
-	cswap=1
+	cswap=0
 	czsize=100
 
 # make /cache all swap
@@ -93,7 +90,7 @@ log -p i -t FI.d " working "
 ## (0 = disabled) (1 = enabled)
 # use zram with cache
 # with a raid 0 like way.
-	zrswap=1
+	zrswap=0
 
 #   ------------------------<EXPERT>-----------------------   #
 
@@ -161,7 +158,16 @@ elif [ "$OC" == "0" ]; then
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
 	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
 fi
+if [ "$Gfix" == "1" ]; then
+	echo 612000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
+	#chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+	#chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
+else
+	log -p i -t FI.d " Gfix = $Gfix "
+fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	rm /cache/swap || chmod 777 /cache/swap && rm /cache/swap
+	log -p i -t FI.d " swap file removed "
 fi # this must allways be last
 	
