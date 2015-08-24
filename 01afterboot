@@ -2,7 +2,7 @@
 log -p i -t FI.d " working "
 #
 # W.I.P. script, made by USBhost.
-# for this script to work you need busbox
+# for this script to work you'll need busbox,
 # if not supplied. made for the Nexus 9.
 #
 
@@ -11,19 +11,19 @@ log -p i -t FI.d " working "
 	OC=0
 
 # CPU Interactive Governor fix.
+# this will increase battery life.
 ## (0 = disabled) (1 = enabled)
 	Gfix=0
 
-# fsync.
+# fsync. / lets not have this option on by default.
 ## (0 = disabled) (1 = enabled)
-	echo 1 > /sys/module/sync/parameters/fsync_enabled
+	#echo 1 > /sys/module/sync/parameters/fsync_enabled
 
 # fast charge.
 ## (0 = disabled) (1 = enabled)
 	echo 1 > /sys/kernel/fast_charge/force_fast_charge
 
-# its here just to be here
-# if disabled you will get problems with sleep.
+# DTW. historic record / if disabled you will get problems with sleep.
 	#echo 0 > /sys/devices/platform/spi-tegra114.2/spi_master/spi2/spi2.0/input/input0/wake_gesture
 
 # set debug to NO.
@@ -45,11 +45,11 @@ log -p i -t FI.d " working "
 	echo 1 > /sys/kernel/mm/uksm/run
 
 # config swap.
-	echo 10000 > /proc/sys/vm/extra_free_kbytes
+	#echo 10000 > /proc/sys/vm/extra_free_kbytes
+	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
 	echo 0 > /proc/sys/vm/page-cluster
-	echo 0 > /proc/sys/vm/min_free_kbytes
 
 # config Low Memory Killer / historic record, let system control it
 	#echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
@@ -111,7 +111,7 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 		/BB/busybox swapon -d -p 2 /cache/swap
 	fi
 	if [ "$zrswap" == "1" ] && [ "$zram" == "0" ]; then
-		/BB/busybox swapoff /dev/block/zram0
+		#/BB/busybox swapoff /dev/block/zram0 # fstab does not force swap
 		echo 1 > /sys/block/zram0/reset
 		echo 3 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
@@ -126,7 +126,7 @@ if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	/BB/busybox swapon -d -p 2 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
-		/BB/busybox swapoff /dev/block/zram0
+		#/BB/busybox swapoff /dev/block/zram0 # fstab does not force swap
 		echo 1 > /sys/block/zram0/reset
 		echo 3 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
@@ -136,7 +136,7 @@ if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	fi
 fi
 if [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
-	/BB/busybox swapoff /dev/block/zram0
+	#/BB/busybox swapoff /dev/block/zram0 # fstab does not force swap
 	echo 1 > /sys/block/zram0/reset
 	echo 3 > /sys/block/zram0/max_comp_streams
 	echo lz4 > /sys/block/zram0/comp_algorithm
