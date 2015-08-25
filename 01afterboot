@@ -44,15 +44,16 @@ log -p i -t FI.d " working "
 ## (0 = disabled) (1 = enabled)
 	echo 1 > /sys/kernel/mm/uksm/run
 
-# config swap.
-	#echo 10000 > /proc/sys/vm/extra_free_kbytes
+# config memory.
+	echo 10972 > /proc/sys/vm/extra_free_kbytes
 	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
+	#echo 1 > /proc/sys/vm/oom_kill_allocating_task # useful for using swap, but breaks LMK
 	echo 0 > /proc/sys/vm/page-cluster
 
-# config Low Memory Killer / historic record, let system control it
-	#echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
+# config Low Memory Killer / keep within the bounds
+	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
 # ZRAM
 # zrswap and aswap will be made null.
@@ -153,8 +154,8 @@ fi
 if [ "$Gfix" == "1" ]; then
 	echo 612000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
-	#chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
-	#chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
+	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	rm /cache/swap || chmod 777 /cache/swap && rm /cache/swap
