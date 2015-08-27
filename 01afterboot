@@ -33,6 +33,9 @@ log -p i -t FI.d " working "
 	echo 0 > /sys/block/mmcblk0/queue/add_random
 	echo 768 > /sys/block/mmcblk0/queue/read_ahead_kb
 
+# entropy tweaks
+	echo 896 > /proc/sys/kernel/random/write_wakeup_threshold
+
 # config cfq i/o gov for ssds / historic record, we dont use cfq anymore
 	#echo 0 > /sys/block/mmcblk0/queue/iosched/slice_idle
 	#echo 64 > /sys/block/mmcblk0/queue/iosched/quantum
@@ -49,11 +52,17 @@ log -p i -t FI.d " working "
 	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
-	#echo 1 > /proc/sys/vm/oom_kill_allocating_task # useful for using swap, but breaks LMK
 	echo 0 > /proc/sys/vm/page-cluster
 
 # config Low Memory Killer / keep within the bounds
 	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
+
+# turn off Low Memory Killer
+## (0 = disabled) (1 = enabled)
+# ONLY! if your like me / vary memory conscious
+# and always clears recents then you can use this.
+# Note: this does not comptly disable LMK.
+	LMK=0
 
 # ZRAM
 # zrswap and aswap will be made null.
@@ -81,7 +90,7 @@ log -p i -t FI.d " working "
 
 # null if zram is enabled
 ## (0 = disabled) (1 = enabled)
-# use zram with cache
+# use zram with swap
 # with a raid 0 like way.
 	zrswap=0
 
@@ -156,6 +165,10 @@ if [ "$Gfix" == "1" ]; then
 	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
+fi
+if [ "$LMK" == "1" ]; then
+	echo 1 > /proc/sys/vm/oom_kill_allocating_task # this can break stuff so be careful
+	echo "20480,20480,20480,20480,20480,20480" > /sys/module/lowmemorykiller/parameters/minfree  
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	rm /cache/swap || chmod 777 /cache/swap && rm /cache/swap
