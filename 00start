@@ -11,10 +11,10 @@
 # so to fix this, is to apply a wait time before it executes.
 # wake lock is needed because if the system suspends
 # FI.d/init.d scripts may not execute.
-	echo tmp_lock > /sys/power/wake_lock && log -p i -t FI.d " started "
+	echo tmp_lock > /sys/power/wake_lock && log -p i -t FI.d " Start "
 # mount cache
-	/BB/busybox mount -t ext4 -o rw,noatime,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || /BB/busybox mount -t auto -o rw /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || log -p i -t FI.d " mount faild; cache is swap "
+	/BB/busybox mount -t ext4 -o rw,noatime,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || /BB/busybox mount -t auto -o rw /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || log -p i -t FI.d " cache; mount faild, is swap? "
 # start init.d
 	/BB/busybox run-parts /system/etc/init.d
 # set wait time
-	log -p i -t FI.d " wait 1min " && sleep 60
+	log -p i -t FI.d " 1min wait " && sleep 60

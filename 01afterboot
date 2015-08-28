@@ -1,5 +1,5 @@
 #!/system/bin/sh
-log -p i -t FI.d " working "
+log -p i -t FI.d " After boot "
 #
 # W.I.P. script, made by USBhost.
 # for this script to work you'll need busbox,
@@ -61,7 +61,6 @@ log -p i -t FI.d " working "
 ## (0 = disabled) (1 = enabled)
 # ONLY! if your like me / vary memory conscious
 # and always clears recents then you can use this.
-# Note: this does not comptly disable LMK.
 	LMK=0
 
 # ZRAM
@@ -132,7 +131,7 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 fi
 if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	umount /cache
-	/BB/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " cache mounted as tmpfs "
+	/BB/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " cache; mounted as tmpfs "
 	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	/BB/busybox swapon -d -p 2 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
@@ -167,8 +166,8 @@ if [ "$Gfix" == "1" ]; then
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 fi
 if [ "$LMK" == "1" ]; then
-	echo 1 > /proc/sys/vm/oom_kill_allocating_task # this can break stuff so be careful
-	echo "20480,20480,20480,20480,20480,20480" > /sys/module/lowmemorykiller/parameters/minfree  
+	#echo 1 > /proc/sys/vm/oom_kill_allocating_task # this can break stuff so be careful
+	echo "0" > /sys/module/lowmemorykiller/parameters/minfree  
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
 	rm /cache/swap || chmod 777 /cache/swap && rm /cache/swap
