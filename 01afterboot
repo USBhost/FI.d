@@ -7,8 +7,6 @@
 
 log -p i -t FI.d " after boot "
 
-# . /system/etc/FI.d/functions
-
 # overclocking.
 ## (0 = disabled) (1 = enabled)
 	OC=0
@@ -96,37 +94,42 @@ log -p i -t FI.d " after boot "
 # with a raid 0 like way.
 	zrswap=0
 
-# Load override
-. /sdcard/override 
-
 #   ------------------------<EXPERT>-----------------------   #
 
+# Load override
+if [ -e /sdcard/override ]; then
+	. /sdcard/override
+	log -p i -t FI.d " override; loaded "
+else
+	log -p i -t FI.d " no override; skipping "
+fi
 if [ -e /cache/swap ] && [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ]; then
+	fstrim -v /cache
 	/BB/busybox mkswap /cache/swap
 	chmod 600 /cache/swap
-	if [ "$zram" == "1" ] && [ "$cswap" == "1" ]; then
+	if [ "$zram" == "1" ]; then
 		/BB/busybox swapon -d -p 1 /cache/swap
-	else
+	elif [ "$zram" == "0" ]; then
 		/BB/busybox swapon -d -p 2 /cache/swap
 	fi
-elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
+fi
+if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
-		/BB/busybox fstrim -v /cache
+		fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
-		/BB/busybox fstrim -v /cache
+		fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
 	fi
 	if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
 		/BB/busybox swapon -d -p 1 /cache/swap
-	else
+	elif [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
 		/BB/busybox swapon -d -p 2 /cache/swap
 	fi
-	if [ "$zrswap" == "1" ] && [ "$zram" == "0" ]; then
-		#/BB/busybox swapoff /dev/block/zram0 # fstab does not force swap
+	if [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo 3 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
@@ -136,12 +139,11 @@ elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	fi
 fi
 if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
-	umount /cache
-	/BB/busybox mount -t tmpfs -o rw,noatime tmpfs /cache && log -p i -t FI.d " cache; mounted as tmpfs "
+	umount /cache || log -p i -t FI.d " cache was not mounted at start "
+	/BB/busybox mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d " mounted cache as tmpfs "
 	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	/BB/busybox swapon -d -p 2 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
-		#/BB/busybox swapoff /dev/block/zram0 # fstab does not force swap
 		echo 1 > /sys/block/zram0/reset
 		echo 3 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
@@ -151,7 +153,6 @@ if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	fi
 fi
 if [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
-	#/BB/busybox swapoff /dev/block/zram0 # fstab does not force swap
 	echo 1 > /sys/block/zram0/reset
 	echo 3 > /sys/block/zram0/max_comp_streams
 	echo lz4 > /sys/block/zram0/comp_algorithm
@@ -179,4 +180,4 @@ if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswa
 	rm /cache/swap || chmod 777 /cache/swap && rm /cache/swap
 	log -p i -t FI.d " swap file removed "
 fi # this must allways be last
-	
+log -p i -t FI.d " end of after boot"
