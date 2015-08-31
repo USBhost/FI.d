@@ -1,10 +1,13 @@
 #!/system/bin/sh
-log -p i -t FI.d " After boot "
 #
 # W.I.P. script, made by USBhost.
 # for this script to work you'll need busbox,
 # if not supplied. made for the Nexus 9.
 #
+
+log -p i -t FI.d " after boot "
+
+# . /system/etc/FI.d/functions
 
 # overclocking.
 ## (0 = disabled) (1 = enabled)
@@ -60,7 +63,7 @@ log -p i -t FI.d " After boot "
 # turn off Low Memory Killer
 ## (0 = disabled) (1 = enabled)
 # ONLY! if your like me / vary memory conscious
-# and always clears recents then you can use this.
+# and always clears recents, then you can use this.
 	LMK=0
 
 # ZRAM
@@ -93,26 +96,29 @@ log -p i -t FI.d " After boot "
 # with a raid 0 like way.
 	zrswap=0
 
+# Load override
+. /sdcard/override 
+
 #   ------------------------<EXPERT>-----------------------   #
 
 if [ -e /cache/swap ] && [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ]; then
-	chmod 600 /cache/swap
 	/BB/busybox mkswap /cache/swap
-	if [ "$zram" == "1" ]; then
+	chmod 600 /cache/swap
+	if [ "$zram" == "1" ] && [ "$cswap" == "1" ]; then
 		/BB/busybox swapon -d -p 1 /cache/swap
 	else
 		/BB/busybox swapon -d -p 2 /cache/swap
 	fi
 elif [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
-		chmod 600 /cache/swap
 		/BB/busybox fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
+		chmod 600 /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
-		chmod 600 /cache/swap
 		/BB/busybox fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
+		chmod 600 /cache/swap
 	fi
 	if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
 		/BB/busybox swapon -d -p 1 /cache/swap
