@@ -24,7 +24,7 @@ log -p i -t FI.d " after boot "
 ## (0 = disabled) (1 = enabled)
 	echo 1 > /sys/kernel/fast_charge/force_fast_charge
 
-# DTW. historic record / if disabled you will get problems with sleep.
+# DTW. if disabled you will get problems with sleep.
 	#echo 0 > /sys/devices/platform/spi-tegra114.2/spi_master/spi2/spi2.0/input/input0/wake_gesture
 
 # set debug to NO.
@@ -53,43 +53,42 @@ log -p i -t FI.d " after boot "
 	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
-	echo 0 > /proc/sys/vm/page-cluster
+	echo 3 > /proc/sys/vm/page-cluster
 
 # config Low Memory Killer / keep within the bounds
 	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
+# for the following the respected options
+## (0 = disabled) (1 = enabled) ##
+
 # turn off Low Memory Killer
-## (0 = disabled) (1 = enabled)
 # ONLY! if your like me / vary memory conscious
 # and always clears recents, then you can use this.
 	LMK=0
 
 # ZRAM
-# zrswap and aswap will be made null.
-## (0 = disabled) (1 = enabled)
+# zrswap and aswap will be made null if enabled.
 # you can still use cswap but it
 # will be second priority.
 # zsize is in MB.
 	zram=0
 	zsize=0
 
-# cache swap
-## (0 = disabled) (1 = enabled)
+# swap in cache
 # will make a swap file in /cache.
-# czsize must not go over 150
+# csize must not go over 150
 # or f2fs /cache wont work.
-# czsize is in MB.
+# csize is in MB.
 	cswap=0
-	czsize=100
+	csize=0
 
 # make /cache all swap
-# cswap and czsize will be null
-## (0 = disabled) (1 = enabled)
+# cswap and csize will
+# be null if enabled.
 # swap will be 260 MB.
 	aswap=0
 
-# null if zram is enabled
-## (0 = disabled) (1 = enabled)
+# null if zram's enabled
 # use zram with swap
 # with a raid 0 like way.
 	zrswap=0
@@ -119,7 +118,7 @@ if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
 	else
-		dd if=/dev/zero of=/cache/swap bs="$czsize"m count=1
+		dd if=/dev/zero of=/cache/swap bs="$csize"m count=1
 		fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
@@ -131,9 +130,9 @@ if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	fi
 	if [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
-		echo 3 > /sys/block/zram0/max_comp_streams
+		echo 2 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
-		echo "$czsize"M > /sys/block/zram0/disksize
+		echo "$csize"M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
 		/BB/busybox swapon -d -p 2 /dev/block/zram0
 	fi
@@ -145,7 +144,7 @@ if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 	/BB/busybox swapon -d -p 2 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
-		echo 3 > /sys/block/zram0/max_comp_streams
+		echo 2 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
@@ -154,7 +153,7 @@ if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
 fi
 if [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
-	echo 3 > /sys/block/zram0/max_comp_streams
+	echo 2 > /sys/block/zram0/max_comp_streams
 	echo lz4 > /sys/block/zram0/comp_algorithm
 	echo "$zsize"M > /sys/block/zram0/disksize
 	/BB/busybox mkswap /dev/block/zram0
@@ -173,7 +172,6 @@ if [ "$Gfix" == "1" ]; then
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 fi
 if [ "$LMK" == "1" ]; then
-	#echo 1 > /proc/sys/vm/oom_kill_allocating_task # this can break stuff so be careful
 	echo "0" > /sys/module/lowmemorykiller/parameters/minfree  
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ] && [ "$zrswap" == "0" ] && [ "$aswap" == "0" ]; then
