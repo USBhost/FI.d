@@ -1,8 +1,8 @@
 #!/system/bin/sh
 #
-# W.I.P. script, made by USBhost.
-# for this script to work you'll need busbox,
-# if not supplied. made for the Nexus 9.
+# W.I.P. script, by USBhost. made for the Nexus 9.
+# i use busybox for some commands because
+# in the hopes of them being newer.
 #
 
 log -p i -t FI.d " after boot "
@@ -58,7 +58,7 @@ log -p i -t FI.d " after boot "
 # config Low Memory Killer / keep within the bounds
 	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
-# for the following the respected options
+# for the following respected options
 ## (0 = disabled) (1 = enabled) ##
 
 # turn off Low Memory Killer
@@ -103,7 +103,7 @@ else
 	log -p i -t FI.d " no override; skipping "
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ]; then
-	fstrim -v /cache
+	/BB/busybox fstrim -v /cache
 	/BB/busybox mkswap /cache/swap
 	chmod 600 /cache/swap
 	if [ "$zram" == "1" ]; then
@@ -114,12 +114,12 @@ if [ -e /cache/swap ] && [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswa
 fi
 if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
-		fstrim -v /cache
+		/BB/busybox fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
 	else
 		dd if=/dev/zero of=/cache/swap bs="$csize"m count=1
-		fstrim -v /cache
+		/BB/busybox fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
 	fi
