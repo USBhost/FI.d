@@ -45,8 +45,9 @@ log -p i -t FI.d " after boot "
 #   ------------------------<MEMORY>-----------------------   #
 
 # Ultra Kernel Samepage Merging
-## (0 = disabled) (1 = enabled)
+	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/uksm/run
+
 
 # config memory.
 	echo 10972 > /proc/sys/vm/extra_free_kbytes
@@ -102,31 +103,28 @@ if [ -e /sdcard/override ]; then
 else
 	log -p i -t FI.d " no override; skipping "
 fi
-if [ -e /cache/swap ] && [ "$cswap" == "1" ] && [ "$aswap" == "0" ] && [ "$zrswap" == "0" ]; then
-	/BB/busybox fstrim -v /cache
-	/BB/busybox mkswap /cache/swap
-	chmod 600 /cache/swap
-	if [ "$zram" == "1" ]; then
-		/BB/busybox swapon -d -p 1 /cache/swap
-	elif [ "$zram" == "0" ]; then
-		/BB/busybox swapon -d -p 2 /cache/swap
-	fi
-fi
 if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		/BB/busybox fstrim -v /cache
-		/BB/busybox mkswap /cache/swap
-		chmod 600 /cache/swap
+		if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
+			/BB/busybox swapon -p 1 /cache/swap
+		elif [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
+			/BB/busybox swapon -p 2 /cache/swap
+		elif [ "$zram" == "0" ] && [ "$zrswap" == "0" ]; then
+			/BB/busybox swapon /cache/swap
+		fi
 	else
 		dd if=/dev/zero of=/cache/swap bs="$csize"m count=1
-		/BB/busybox fstrim -v /cache
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
-	fi
-	if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
-		/BB/busybox swapon -d -p 1 /cache/swap
-	elif [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
-		/BB/busybox swapon -d -p 2 /cache/swap
+		/BB/busybox fstrim -v /cache
+		if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
+			/BB/busybox swapon -p 1 /cache/swap
+		elif [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
+			/BB/busybox swapon -p 2 /cache/swap
+		elif [ "$zram" == "0" ] && [ "$zrswap" == "0" ]; then
+			/BB/busybox swapon /cache/swap
+		fi
 	fi
 	if [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
@@ -134,30 +132,31 @@ if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$csize"M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
-		/BB/busybox swapon -d -p 2 /dev/block/zram0
+		/BB/busybox swapon -p 2 /dev/block/zram0
 	fi
 fi
-if [ "$aswap" == "1" ] && [ "$zram" == "0" ]; then
-	umount /cache || log -p i -t FI.d " cache was not mounted at start "
+if [ "$zram" == "0" ] && [ "$aswap" == "1" ]; then
+	umount /cache && umount=yes || umount=no && log -p i -t FI.d " cache was not mounted at start "
 	/BB/busybox mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d " mounted cache as tmpfs "
-	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	/BB/busybox swapon -d -p 2 /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	if [ "umount" == "yes" ]; then
+		/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	fi
+	/BB/busybox swapon /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo 2 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
-		/BB/busybox swapon -d -p 2 /dev/block/zram0
+		/BB/busybox swapon /dev/block/zram0
 	fi
-fi
-if [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
+elif [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
 	echo 2 > /sys/block/zram0/max_comp_streams
 	echo lz4 > /sys/block/zram0/comp_algorithm
 	echo "$zsize"M > /sys/block/zram0/disksize
 	/BB/busybox mkswap /dev/block/zram0
-	/BB/busybox swapon -d -p 2 /dev/block/zram0
+	/BB/busybox swapon -p 2 /dev/block/zram0
 fi
 if [ "$OC" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
