@@ -1,6 +1,9 @@
 #!/system/bin/sh
 #
 # W.I.P. script, by USBhost. made for the Nexus 9.
+# this script is most likely universal to devises that
+# has ZRAM and SWAP enabled.
+#
 # i use busybox for some commands because
 # in the hopes of them being newer.
 #
@@ -11,10 +14,10 @@
 # so to fix this, is to apply a wait time before it executes.
 # wake lock is needed because if the system suspends
 # FI.d/init.d scripts may not execute.
-	echo tmp_lock > /sys/power/wake_lock && log -p i -t FI.d " FI.d v23 start "
+	echo tmp_lock > /sys/power/wake_lock && log -p i -t FI.d " FI.d start "
 # mount cache
-	/BB/busybox mount -t ext4 -o rw,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || /BB/busybox mount -t auto -o rw /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || log -p i -t FI.d " cache; mount faild, is swap? "
+	/BB/busybox mount -t ext4 -o rw,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || /BB/busybox mount -t auto -o rw /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache || log -p i -t FI.d " cache; mount faild, is it swap? "
 # start init.d
 	/BB/busybox run-parts /system/etc/init.d
 # set wait time
-	log -p i -t FI.d " 1min wait to continue" && sleep 60
+	log -p i -t FI.d " 1min wait to continue" && /BB/busybox sleep 1m

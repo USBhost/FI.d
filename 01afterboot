@@ -1,11 +1,14 @@
 #!/system/bin/sh
 #
 # W.I.P. script, by USBhost. made for the Nexus 9.
+# this script is most likely universal to devises that
+# has ZRAM and SWAP enabled.
+#
 # i use busybox for some commands because
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d " after boot "
+log -p i -t FI.d " FIRE-ICE script v24 "
 
 # overclocking.
 ## (0 = disabled) (1 = enabled)
@@ -65,6 +68,7 @@ log -p i -t FI.d " after boot "
 	echo 0 > /proc/sys/vm/page-cluster
 
 # config Low Memory Killer / keep within the bounds
+	chmod 644 /sys/module/lowmemorykiller/parameters/minfree # FIXME: it should be fixed in the ramdisk
 	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
 # for the following respected options
@@ -74,6 +78,12 @@ log -p i -t FI.d " after boot "
 # ONLY! if your like me / vary memory conscious
 # and always clears recents, then you can use this.
 	LMK=0
+
+# Remove cache swap file
+# note you should use this only once becuase
+# ywe dont want to make more stress on cache then needed.
+# this is more like a override that always deletes cache swap.
+	rmswap=0
 
 # ZRAM
 # zrswap and aswap will be made null if enabled.
@@ -111,6 +121,9 @@ if [ -e /sdcard/override ]; then
 else
 	log -p i -t FI.d " no override; skipping "
 fi
+if [ "$rmswap" == "1" ]; then
+	rm /cache/swap
+fi
 if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		/BB/busybox fstrim -v /cache
@@ -144,19 +157,17 @@ if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	fi
 fi
 if [ "$zram" == "0" ] && [ "$aswap" == "1" ]; then
-	umount /cache && umount=yes
+	umount /cache
 	/BB/busybox mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d " mounted cache as tmpfs "
-	if [ "umount" == "yes" ]; then
-		/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	fi
-	/BB/busybox swapon /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC # FIXME: make it run only once
+	/BB/busybox swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo "$streams" > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
-		/BB/busybox swapon /dev/block/zram0
+		/BB/busybox swapon -p 1 /dev/block/zram0
 	fi
 elif [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
@@ -167,8 +178,9 @@ elif [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
 	/BB/busybox mkswap /dev/block/zram0
 	/BB/busybox swapon -p 2 /dev/block/zram0
 fi
-if [ "$zsize" -ge "700" ]; then
+if [ "$zsize" -ge "550" ]; then
 	echo 100 > /proc/sys/vm/swappiness
+	echo 0 > /proc/sys/vm/page-cluster
 fi
 if [ "$OC" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
@@ -187,5 +199,5 @@ if [ "$LMK" == "1" ]; then
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ]; then
 	rm /cache/swap
-fi # this must allways be last
-log -p i -t FI.d " end of after boot"
+fi
+log -p i -t FI.d " end of script"
