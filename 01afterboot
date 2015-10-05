@@ -23,11 +23,6 @@ log -p i -t FI.d " FIRE-ICE script v24 "
 ## (0 = disabled) (1 = enabled)
 	#echo 1 > /sys/module/sync/parameters/fsync_enabled
 
-# schedule workqueues on awake cpus to save power
-## (0 = disabled) (1 = enabled)
-	chmod 755 /sys/module/workqueue/parameters/power_efficient
-	echo 0 > /sys/module/workqueue/parameters/power_efficient
-
 # fast charge.
 ## (0 = disabled) (1 = enabled)
 	echo 1 > /sys/kernel/fast_charge/force_fast_charge
@@ -53,7 +48,9 @@ log -p i -t FI.d " FIRE-ICE script v24 "
 
 #   ------------------------<MEMORY>-----------------------   #
 
-# set zram comp streams
+# set zram working streams.
+# note this is for zram only
+# not to be used with zrswap and/or cswap.
 	streams="$(cat /proc/cpuinfo | grep -c processor)"
 
 # Ultra Kernel Samepage Merging
@@ -61,14 +58,14 @@ log -p i -t FI.d " FIRE-ICE script v24 "
 	echo 1 > /sys/kernel/mm/uksm/run
 
 # config memory.
-	echo 10972 > /proc/sys/vm/extra_free_kbytes
 	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
-	echo 0 > /proc/sys/vm/page-cluster
+	echo 0 > /proc/sys/vm/extra_free_kbytes
+	echo 0 > /proc/sys/vm/page-cluster # FIXME: this should be restored in the ramdisk 
 
 # config Low Memory Killer / keep within the bounds
-	chmod 644 /sys/module/lowmemorykiller/parameters/minfree # FIXME: it should be fixed in the ramdisk
+	chmod 644 /sys/module/lowmemorykiller/parameters/minfree # FIXME: this should be fixed in the ramdisk
 	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
 # for the following respected options
@@ -81,8 +78,8 @@ log -p i -t FI.d " FIRE-ICE script v24 "
 
 # Remove cache swap file
 # note you should use this only once becuase
-# ywe dont want to make more stress on cache then needed.
-# this is more like a override that always deletes cache swap.
+# we dont want to make more stress on cache then needed.
+# this is a override that always deletes cache swap.
 	rmswap=0
 
 # ZRAM
@@ -149,7 +146,7 @@ if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
 	fi
 	if [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
-		echo "$streams" > /sys/block/zram0/max_comp_streams
+		echo 1 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$csize"M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
@@ -163,7 +160,7 @@ if [ "$zram" == "0" ] && [ "$aswap" == "1" ]; then
 	/BB/busybox swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$zrswap" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
-		echo "$streams" > /sys/block/zram0/max_comp_streams
+		echo 1 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
@@ -177,10 +174,6 @@ elif [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
 	echo "$zsize"M > /sys/block/zram0/disksize
 	/BB/busybox mkswap /dev/block/zram0
 	/BB/busybox swapon -p 2 /dev/block/zram0
-fi
-if [ "$zsize" -ge "550" ]; then
-	echo 100 > /proc/sys/vm/swappiness
-	echo 0 > /proc/sys/vm/page-cluster
 fi
 if [ "$OC" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
