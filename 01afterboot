@@ -8,14 +8,17 @@
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d " FIRE-ICE script v24 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v26 "
 
 # overclocking.
+# CPU 2.5 ghz
+# GPU 0.984 ghz
 ## (0 = disabled) (1 = enabled)
 	OC=0
 
 # CPU Interactive Governor fix.
-# this will increase battery life.
+# this will increase battery life
+# but with some lag.
 ## (0 = disabled) (1 = enabled)
 	Gfix=0
 
@@ -26,9 +29,6 @@ log -p i -t FI.d " FIRE-ICE script v24 "
 # fast charge.
 ## (0 = disabled) (1 = enabled)
 	echo 1 > /sys/kernel/fast_charge/force_fast_charge
-
-# DTW. if disabled you will get problems with sleep.
-	#echo 0 > /sys/devices/platform/spi-tegra114.2/spi_master/spi2/spi2.0/input/input0/wake_gesture
 
 # set debug to NO.
 	echo 0 > /sys/kernel/debug/debug_enabled
@@ -41,16 +41,9 @@ log -p i -t FI.d " FIRE-ICE script v24 "
 	echo 320 > /proc/sys/kernel/random/write_wakeup_threshold
 	echo 256 > /proc/sys/kernel/random/read_wakeup_threshold
 
-# config cfq i/o gov for ssds / historic record, we dont use cfq anymore
-	#echo 0 > /sys/block/mmcblk0/queue/iosched/slice_idle
-	#echo 64 > /sys/block/mmcblk0/queue/iosched/quantum
-	#echo 1 > /sys/block/mmcblk0/queue/iosched/group_idle
-
 #   ------------------------<MEMORY>-----------------------   #
 
-# set zram working streams.
-# note this is for zram only
-# not to be used with zrswap and/or cswap.
+# set working streams, thats used with zram.
 	streams="$(cat /proc/cpuinfo | grep -c processor)"
 
 # Ultra Kernel Samepage Merging
@@ -58,107 +51,96 @@ log -p i -t FI.d " FIRE-ICE script v24 "
 	echo 1 > /sys/kernel/mm/uksm/run
 
 # config memory.
+	#echo 10972 > /proc/sys/vm/extra_free_kbytes # FIXME: testing, let system set it
 	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
-	echo 0 > /proc/sys/vm/extra_free_kbytes
 	echo 0 > /proc/sys/vm/page-cluster # FIXME: this should be restored in the ramdisk 
 
 # config Low Memory Killer / keep within the bounds
 	chmod 644 /sys/module/lowmemorykiller/parameters/minfree # FIXME: this should be fixed in the ramdisk
 	echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree
 
-# for the following respected options
+# turn off Low Memory Killer.
+# ONLY! if your vary, vary memory conscious
+# and always clears recents, then you can use this!
+# if your not memory conscious things will go wrong!
 ## (0 = disabled) (1 = enabled) ##
-
-# turn off Low Memory Killer
-# ONLY! if your like me / vary memory conscious
-# and always clears recents, then you can use this.
 	LMK=0
 
-# Remove cache swap file
-# note you should use this only once becuase
-# we dont want to make more stress on cache then needed.
-# this is a override that always deletes cache swap.
-	rmswap=0
-
-# ZRAM
-# zrswap and aswap will be made null if enabled.
+# ZRAM.
+# "raid" and "aswap" will be null.
 # you can still use cswap but it
 # will be second priority.
-# zsize is in MB.
-	zram=0
-	zsize=0
+## (0 = disabled) ##
+	zswap=0 # zswap is in MB.
 
-# swap in cache
+# swap in cache.
 # will make a swap file in /cache.
-# csize must not go over 150
-# or f2fs /cache wont work.
-# csize is in MB.
-	cswap=0
-	csize=0
+# cswap must not go over 150
+# or f2fs /cache will not work.
+## (0 = disabled) ##
+	cswap=0 # cswap is in MB.
 
-# make /cache all swap
-# cswap and csize will
-# be null if enabled.
-# swap will be 260 MB.
+# make /cache all swap.
+# cswap will be null if enabled.
+# swap will be 260MB, 520MB if "raid" = 1 .
+# note: cache will be formated.
+## (0 = disabled) (1 = enabled) ##
 	aswap=0
 
-# null if zram's enabled
-# use zram with swap
+# use zswap and cswap
 # with a raid 0 like way.
-	zrswap=0
+## (0 = disabled) (1 = enabled) ##
+	raid=0
 
 #   ------------------------<EXPERT>-----------------------   #
 
 # Load override
 if [ -e /sdcard/override ]; then
-	log -p i -t FI.d " override; loading "
+	log -p i -t FI.d:01afterboot " override; loading "
 	. /sdcard/override
 else
-	log -p i -t FI.d " no override; skipping "
+	log -p i -t FI.d:01afterboot " no override; skipping "
 fi
-if [ "$rmswap" == "1" ]; then
-	rm /cache/swap
-fi
-if [ "$cswap" == "1" ] && [ "$aswap" == "0" ]; then
+if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		/BB/busybox fstrim -v /cache
-		if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
+		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
 			/BB/busybox swapon -p 1 /cache/swap # with zram
-		elif [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
+		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
 			/BB/busybox swapon -p 2 /cache/swap # raid 0
-		elif [ "$zram" == "0" ] && [ "$zrswap" == "0" ]; then
+		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
 			/BB/busybox swapon /cache/swap # solo
 		fi
 	else
-		dd if=/dev/zero of=/cache/swap bs="$csize"m count=1
+		dd if=/dev/zero of=/cache/swap bs="$cswap"m count=1
 		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
 		/BB/busybox fstrim -v /cache
-		if [ "$zram" == "1" ] && [ "$zrswap" == "0" ]; then
+		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
 			/BB/busybox swapon -p 1 /cache/swap # with zram
-		elif [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
+		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
 			/BB/busybox swapon -p 2 /cache/swap # raid 0
-		elif [ "$zram" == "0" ] && [ "$zrswap" == "0" ]; then
+		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
 			/BB/busybox swapon /cache/swap # solo
 		fi
 	fi
-	if [ "$zram" == "0" ] && [ "$zrswap" == "1" ]; then
+	if [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo 1 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
-		echo "$csize"M > /sys/block/zram0/disksize
+		echo "$cswap"M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
 		/BB/busybox swapon -p 2 /dev/block/zram0
 	fi
 fi
-if [ "$zram" == "0" ] && [ "$aswap" == "1" ]; then
+if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 	umount /cache
-	/BB/busybox mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d " mounted cache as tmpfs "
+	/BB/busybox mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d:01afterboot " mounted cache as tmpfs "
 	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC # FIXME: make it run only once
 	/BB/busybox swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
-	if [ "$zrswap" == "1" ]; then
+	if [ "$raid" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo 1 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
@@ -166,12 +148,12 @@ if [ "$zram" == "0" ] && [ "$aswap" == "1" ]; then
 		/BB/busybox mkswap /dev/block/zram0
 		/BB/busybox swapon -p 1 /dev/block/zram0
 	fi
-elif [ "$zram" == "1" ] && [ "$aswap" == "0" ]; then
+if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
 	echo "$streams" > /sys/block/zram0/max_comp_streams
 	echo lz4 > /sys/block/zram0/comp_algorithm
-	echo 700M > /sys/block/zram0/mem_limit
-	echo "$zsize"M > /sys/block/zram0/disksize
+	echo 600M > /sys/block/zram0/mem_limit # safety limit
+	echo "$zswap"M > /sys/block/zram0/disksize
 	/BB/busybox mkswap /dev/block/zram0
 	/BB/busybox swapon -p 2 /dev/block/zram0
 fi
@@ -193,4 +175,3 @@ fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ]; then
 	rm /cache/swap
 fi
-log -p i -t FI.d " end of script"

@@ -3,8 +3,10 @@
 # W.I.P. script, made by USBhost.
 #
 
-# resume suspend
+# turn on led
 	echo 1 > /sys/class/htc_sensorhub/sensor_hub/led_en
 	sleep 2
 	echo 0 > /sys/class/htc_sensorhub/sensor_hub/led_en
-	echo tmp_lock > /sys/power/wake_unlock && log -p i -t FI.d " Done "
+
+# resume suspend
+	echo tmp_lock > /sys/power/wake_unlock && log -p i -t FI.d:99stop " Done "
