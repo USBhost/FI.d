@@ -2,13 +2,13 @@
 #
 # W.I.P. script, by USBhost. made for the Nexus 9.
 # this script is most likely universal to devises that
-# has ZRAM and SWAP enabled.
+# has ZRAM and/or SWAP enabled.
 #
 # i use busybox for some commands because
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v26 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v27 "
 
 # overclocking.
 # CPU 2.5 ghz
@@ -22,13 +22,17 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v26 "
 ## (0 = disabled) (1 = enabled)
 	Gfix=0
 
-# fsync. / lets not have this option on by default.
-## (0 = disabled) (1 = enabled)
-	#echo 1 > /sys/module/sync/parameters/fsync_enabled
+# fsync
+## (0 = disabled) (1 = default/enabled)
+	FS=1
 
 # fast charge.
-## (0 = disabled) (1 = enabled)
-	echo 1 > /sys/kernel/fast_charge/force_fast_charge
+## (0 = default/disabled) (1 = enabled)
+	FC=1
+
+# double tap to wake
+## (0 = disabled) (1 = default/enabled)
+	DTW=1
 
 # set debug to NO.
 	echo 0 > /sys/kernel/debug/debug_enabled
@@ -43,12 +47,12 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v26 "
 
 #   ------------------------<MEMORY>-----------------------   #
 
-# set working streams, thats used with zram.
-	streams="$(cat /proc/cpuinfo | grep -c processor)"
+# set working cores, thats used with zram.
+	core="$(cat /proc/cpuinfo | grep -c processor)"
 
 # Ultra Kernel Samepage Merging
-	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
-	echo 1 > /sys/kernel/mm/uksm/run
+## (0 = default/disabled) (1 = enabled) ##
+	UKSM=1
 
 # config memory.
 	#echo 10972 > /proc/sys/vm/extra_free_kbytes # FIXME: testing, let system set it
@@ -67,6 +71,13 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v26 "
 # if your not memory conscious things will go wrong!
 ## (0 = disabled) (1 = enabled) ##
 	LMK=0
+
+# Adaptive LMK
+# prevents sluggishness and provides very low app 
+# launch latency by making LMK more dynamically aggressive.
+# note: this may use more battery.
+## (0 = disabled) (1 = enabled) ##
+	AMK=0
 
 # ZRAM.
 # "raid" and "aswap" will be null.
@@ -103,27 +114,29 @@ if [ -e /sdcard/override ]; then
 else
 	log -p i -t FI.d:01afterboot " no override; skipping "
 fi
+if [ "$UKSM" == "1" ]; then
+	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
+	echo 1 > /sys/kernel/mm/uksm/run
+fi
 if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
-		/BB/busybox fstrim -v /cache
 		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
 			/BB/busybox swapon -p 1 /cache/swap # with zram
 		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
 			/BB/busybox swapon -p 2 /cache/swap # raid 0
 		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
-			/BB/busybox swapon /cache/swap # solo
+			/BB/busybox swapon -d /cache/swap # solo
 		fi
 	else
 		dd if=/dev/zero of=/cache/swap bs="$cswap"m count=1
-		/BB/busybox mkswap /cache/swap
 		chmod 600 /cache/swap
-		/BB/busybox fstrim -v /cache
+		/BB/busybox mkswap /cache/swap
 		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
-			/BB/busybox swapon -p 1 /cache/swap # with zram
+			/BB/busybox swapon -d -p 1 /cache/swap # with zram
 		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
-			/BB/busybox swapon -p 2 /cache/swap # raid 0
+			/BB/busybox swapon -d -p 2 /cache/swap # raid 0
 		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
-			/BB/busybox swapon /cache/swap # solo
+			/BB/busybox swapon -d /cache/swap # solo
 		fi
 	fi
 	if [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
@@ -132,30 +145,38 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo "$cswap"M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
-		/BB/busybox swapon -p 2 /dev/block/zram0
+		/BB/busybox swapon -d -p 2 /dev/block/zram0
 	fi
 fi
 if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 	umount /cache
 	/BB/busybox mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d:01afterboot " mounted cache as tmpfs "
 	/BB/busybox mkswap /dev/block/platform/sdhci-tegra.3/by-name/CAC # FIXME: make it run only once
-	/BB/busybox swapon -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
+	/BB/busybox swapon -d -p 1 /dev/block/platform/sdhci-tegra.3/by-name/CAC
 	if [ "$raid" == "1" ]; then
 		echo 1 > /sys/block/zram0/reset
 		echo 1 > /sys/block/zram0/max_comp_streams
 		echo lz4 > /sys/block/zram0/comp_algorithm
 		echo 260M > /sys/block/zram0/disksize
 		/BB/busybox mkswap /dev/block/zram0
-		/BB/busybox swapon -p 1 /dev/block/zram0
+		/BB/busybox swapon -d -p 1 /dev/block/zram0
 	fi
+fi
 if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > /sys/block/zram0/reset
-	echo "$streams" > /sys/block/zram0/max_comp_streams
+	echo "$core" > /sys/block/zram0/max_comp_streams
 	echo lz4 > /sys/block/zram0/comp_algorithm
-	echo 600M > /sys/block/zram0/mem_limit # safety limit
+	#echo 600M > /sys/block/zram0/mem_limit # safety limit
 	echo "$zswap"M > /sys/block/zram0/disksize
 	/BB/busybox mkswap /dev/block/zram0
-	/BB/busybox swapon -p 2 /dev/block/zram0
+	/BB/busybox swapon -d -p 2 /dev/block/zram0
+fi
+if [ "$LMK" == "1" ]; then
+	echo 0 > /sys/module/lowmemorykiller/parameters/minfree  
+fi
+if [ "$AMK" == "1" ]; then
+	echo 1 > /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk
+	echo 46080 > /sys/module/lowmemorykiller/parameters/vmpressure_file_min
 fi
 if [ "$OC" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
@@ -169,8 +190,14 @@ if [ "$Gfix" == "1" ]; then
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 fi
-if [ "$LMK" == "1" ]; then
-	echo "0" > /sys/module/lowmemorykiller/parameters/minfree  
+if [ "$DTW" == "0" ]; then
+	echo 0 > /sys/devices/platform/spi-tegra114.2/spi_master/spi2/spi2.0/input/input0/wake_gesture
+fi
+if [ "$FS" == "0" ]; then
+	echo 0 > /sys/module/sync/parameters/fsync_enabled
+fi
+if [ "$FC" == "1" ]; then
+	echo 1 > /sys/kernel/fast_charge/force_fast_charge
 fi
 if [ -e /cache/swap ] && [ "$cswap" == "0" ]; then
 	rm /cache/swap

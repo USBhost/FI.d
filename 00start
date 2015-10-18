@@ -16,7 +16,7 @@
 	log -p i -t FI.d:00start "$(id)"
 
 # mount cache
-	/BB/busybox mount -t ext4 -o rw,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
+	/BB/busybox mount -t ext4 -o rw,barrier=0,noload,discard,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
         /BB/busybox mount -t auto -o rw /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
         log -p i -t FI.d:00start " cache; mount faild, is it swap? "
 
