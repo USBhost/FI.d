@@ -5,23 +5,24 @@
 # i use busybox for some commands because
 # in the hopes of them being newer.
 #
-
 # the 'FI.d' folder
-# is meant for values that dont stay at boot
-# because the system overwrites them just after bootup.
-# so to fix this, is to apply a wait time before it executes.
+# is meant for values that do not stay at boot
+
+
 # wake lock is needed because if the system suspends
-# FI.d/init.d scripts may not execute.
+# FI.d/init.d scripts will not run.
 	echo tmp_lock > /sys/power/wake_lock && log -p i -t FI.d:00start " FI.d start "
 	log -p i -t FI.d:00start "$(id)"
 
 # mount cache
-	/BB/busybox mount -t ext4 -o rw,barrier=0,noload,discard,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
+	/BB/busybox mount -t ext4 -o rw,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
+	/BB/busybox mount -t f2fs -o rw,flush_merge,discard,background_gc=sync /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
         /BB/busybox mount -t auto -o rw /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
-        log -p i -t FI.d:00start " cache; mount faild, is it swap? "
+        log -p i -t FI.d:00start " cache; mount faild "
 
 # start init.d
 	/BB/busybox run-parts /system/etc/init.d
 
 # set wait time
-	log -p i -t FI.d:00start " 1min wait to continue" && /BB/busybox sleep 1m
+	log -p i -t FI.d:00start " 1min 30sec wait to continue"
+	/BB/busybox sleep 1m 30s

@@ -8,7 +8,7 @@
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v27 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v28 "
 
 # overclocking.
 # CPU 2.5 ghz
@@ -18,7 +18,7 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v27 "
 
 # CPU Interactive Governor fix.
 # this will increase battery life
-# but with some lag.
+# Note: there will be some lag
 ## (0 = disabled) (1 = enabled)
 	Gfix=0
 
@@ -51,11 +51,11 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v27 "
 	core="$(cat /proc/cpuinfo | grep -c processor)"
 
 # Ultra Kernel Samepage Merging
+# hmm... does not seem to be needed on MM
 ## (0 = default/disabled) (1 = enabled) ##
 	UKSM=1
 
 # config memory.
-	#echo 10972 > /proc/sys/vm/extra_free_kbytes # FIXME: testing, let system set it
 	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/vfs_cache_pressure
 	echo 60 > /proc/sys/vm/swappiness
@@ -69,13 +69,13 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v27 "
 # ONLY! if your vary, vary memory conscious
 # and always clears recents, then you can use this!
 # if your not memory conscious things will go wrong!
-## (0 = disabled) (1 = enabled) ##
-	LMK=0
+## (0 = disabled) (1 = default/enabled) ##
+	LMK=1
 
 # Adaptive LMK
 # prevents sluggishness and provides very low app 
-# launch latency by making LMK more dynamically aggressive.
-# note: this may use more battery.
+# launch latency but in doing so makes LMK more dynamically aggressive.
+# note: this may use more battery because it kills more.
 ## (0 = disabled) (1 = enabled) ##
 	AMK=0
 
@@ -84,23 +84,23 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v27 "
 # you can still use cswap but it
 # will be second priority.
 ## (0 = disabled) ##
-	zswap=0 # zswap is in MB.
+	zswap=0 # "zswap" is in MB.
 
 # swap in cache.
 # will make a swap file in /cache.
-# cswap must not go over 150
+# "cswap" must not go over 150
 # or f2fs /cache will not work.
 ## (0 = disabled) ##
-	cswap=0 # cswap is in MB.
+	cswap=0 # "cswap" is in MB.
 
 # make /cache all swap.
-# cswap will be null if enabled.
-# swap will be 260MB, 520MB if "raid" = 1 .
-# note: cache will be formated.
+# "cswap" will be null if enabled.
+# "swap" will be 260MB, 520MB if "raid" = 1 .
+# note: cache will be formated to swap.
 ## (0 = disabled) (1 = enabled) ##
 	aswap=0
 
-# use zswap and cswap
+# use "zswap" and "cswap"
 # with a raid 0 like way.
 ## (0 = disabled) (1 = enabled) ##
 	raid=0
@@ -111,6 +111,7 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v27 "
 if [ -e /sdcard/override ]; then
 	log -p i -t FI.d:01afterboot " override; loading "
 	. /sdcard/override
+	log -p i -t FI.d:01afterboot "$(cat /sdcard/override)"
 else
 	log -p i -t FI.d:01afterboot " no override; skipping "
 fi
@@ -121,22 +122,22 @@ fi
 if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	if [ -e /cache/swap ]; then
 		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
-			/BB/busybox swapon -p 1 /cache/swap # with zram
+			/BB/busybox swapon -p 1 /cache/swap # zram
 		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
 			/BB/busybox swapon -p 2 /cache/swap # raid 0
 		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
-			/BB/busybox swapon -d /cache/swap # solo
+			/BB/busybox swapon -d /cache/swap # cswap only
 		fi
 	else
 		dd if=/dev/zero of=/cache/swap bs="$cswap"m count=1
 		chmod 600 /cache/swap
 		/BB/busybox mkswap /cache/swap
 		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
-			/BB/busybox swapon -d -p 1 /cache/swap # with zram
+			/BB/busybox swapon -d -p 1 /cache/swap # zram
 		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
 			/BB/busybox swapon -d -p 2 /cache/swap # raid 0
 		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
-			/BB/busybox swapon -d /cache/swap # solo
+			/BB/busybox swapon -d /cache/swap # cswap only
 		fi
 	fi
 	if [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
@@ -171,7 +172,7 @@ if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ]; then
 	/BB/busybox mkswap /dev/block/zram0
 	/BB/busybox swapon -d -p 2 /dev/block/zram0
 fi
-if [ "$LMK" == "1" ]; then
+if [ "$LMK" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree  
 fi
 if [ "$AMK" == "1" ]; then
