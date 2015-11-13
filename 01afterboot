@@ -8,7 +8,7 @@
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v30 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v31 "
 
 # overclocking.
 # CPU 2.5 ghz
@@ -37,10 +37,8 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v30 "
 # set debug to NO.
 	echo 0 > /sys/kernel/debug/debug_enabled
 
-# tweaks
+# I/O tweaks
 	echo 0 > /sys/block/mmcblk0/queue/add_random
-	echo 320 > /proc/sys/kernel/random/write_wakeup_threshold
-	echo 256 > /proc/sys/kernel/random/read_wakeup_threshold
 
 #   ------------------------<MEMORY>-----------------------   #
 
@@ -57,7 +55,7 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v30 "
 # config Low Memory Killer
 	chmod 644 /sys/module/lowmemorykiller/parameters/minfree # FIXME: this should be fixed in the ramdisk
 	echo "18432,23040,27648,32256,55296,80640" > /sys/module/lowmemorykiller/parameters/minfree
-	#echo "12288,15360,18432,21504,24576,30720" > /sys/module/lowmemorykiller/parameters/minfree
+	#echo "17152,21760,26368,30976,35584,40192" > /sys/module/lowmemorykiller/parameters/minfree # testing
 
 # Low Memory Killer.
 # ONLY! if your vary, vary memory conscious
