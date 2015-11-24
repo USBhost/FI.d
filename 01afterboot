@@ -8,7 +8,7 @@
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v31 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v32 "
 
 # overclocking.
 # CPU 2.5 ghz
@@ -37,30 +37,33 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v31 "
 # set debug to NO.
 	echo 0 > /sys/kernel/debug/debug_enabled
 
-# I/O tweaks
+# tweak I/O 
 	echo 0 > /sys/block/mmcblk0/queue/add_random
 
 #   ------------------------<MEMORY>-----------------------   #
 
+# tweak memory options .
+	echo 5486 > /proc/sys/vm/min_free_kbytes
+	echo 100 > /proc/sys/vm/swappiness # we use swap for a reason, so keep it aggressive
+	echo 100 > /proc/sys/vm/vfs_cache_pressure # keep at 100, some roms make it lower
+	echo 10 > /proc/sys/vm/dirty_background_ratio
+	echo 3 > /proc/sys/vm/page-cluster # having second thoughts about this one
+
+# tweak Low Memory Killer
+	chmod 644 /sys/module/lowmemorykiller/parameters/minfree
+	#echo "18432,23040,27648,32256,55296,80640" > /sys/module/lowmemorykiller/parameters/minfree # stock mm
+	echo "19712,24320,28928,33536,38144,42752" > /sys/module/lowmemorykiller/parameters/minfree # testing
+
 # Ultra Kernel Samepage Merging
-# hmm... does not seem to be needed on MM
+# hmm... does not seem to do much good on MM
 ## (0 = default/disabled) (1 = enabled) ##
 	uksm=1
-
-# tweak/fix memory options .
-	echo 5486 > /proc/sys/vm/min_free_kbytes
-	echo 100 > /proc/sys/vm/swappiness
-	echo 3 > /proc/sys/vm/page-cluster
-
-# config Low Memory Killer
-	chmod 644 /sys/module/lowmemorykiller/parameters/minfree # FIXME: this should be fixed in the ramdisk
-	echo "18432,23040,27648,32256,55296,80640" > /sys/module/lowmemorykiller/parameters/minfree
-	#echo "17152,21760,26368,30976,35584,40192" > /sys/module/lowmemorykiller/parameters/minfree # testing
+	ksm=0 # only use this if uksm is not compiled in the kernel
 
 # Low Memory Killer.
 # ONLY! if your vary, vary memory conscious
 # and always clears recents, then you disable this,
-# if your not things will go wrong!
+# if your not things will go bad!
 ## (0 = disabled) (1 = default/enabled) ##
 	lmk=1
 
@@ -108,30 +111,25 @@ CACHE=/dev/block/mmcblk0p30
 CSWAP=/cache/swap
 
 # Load override
-if [ -e $ORID ]; then
+if [ -e "$ORID" ] || [ -e "$ORID".txt ]; then
 	log -p i -t FI.d:01afterboot " $ORID; loading "
-	. $ORID
-	log -p i -t FI.d:01afterboot " $(cat $ORID) "
+	. $ORID || . "$ORID".txt
 else
 	log -p i -t FI.d:01afterboot " no $ORID; skipping "
 fi
-if [ "$uksm" == "1" ]; then
-	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
-	echo 1 > /sys/kernel/mm/uksm/run
-fi
 if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
-	if [ -e $CSWAP ] && [ "$SIZE" == "$cswap" ]; then
+	if [ -e "$CSWAP" ] && [ "$SIZE" == "$cswap" ]; then
 		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
-			$BB swapon -p 1 $CSWAP # zram only
+			$BB swapon -d -p 1 $CSWAP # zram with cswap
 		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
-			$BB swapon -p 2 $CSWAP # raid 0
+			$BB swapon -d -p 2 $CSWAP # raid 0
 		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
 			$BB swapon -d $CSWAP # cswap only
 		fi
 	else
 		if [ -e $CSWAP ]; then
-			log -p i -t FI.d:01afterboot " cache; changing size to $cswap "
+			log -p i -t FI.d:01afterboot " cache; changing size "
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
 			SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 			if [ "$cswap" != "$SIZE" ]; then
@@ -147,7 +145,7 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 		chmod 600 $CSWAP
 		$BB mkswap $CSWAP
 		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
-			$BB swapon -d -p 1 $CSWAP # zram only
+			$BB swapon -d -p 1 $CSWAP # zram with cswap
 		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
 			$BB swapon -d -p 2 $CSWAP # raid 0
 		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
@@ -172,7 +170,7 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		echo 1 > $ZRS/reset
 		echo 1 > $ZRS/max_comp_streams
 		echo lz4 > $ZRS/comp_algorithm
-		echo 260M > $ZRS/disksize
+		echo 260M > $ZRS/disksize # swap partition size
 		$BB mkswap $ZRB
 		$BB swapon -d -p 1 $ZRB
 	fi
@@ -181,10 +179,21 @@ if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > $ZRS/reset
 	echo "$CORE" > $ZRS/max_comp_streams
 	echo lz4 > $ZRS/comp_algorithm
-	#echo 600M > $ZRS/mem_limit # safety limit
 	echo "$zswap"M > $ZRS/disksize
 	$BB mkswap $ZRB
-	$BB swapon -d -p 2 $ZRB
+	if [ "$cswap" -ge "1" ]; then
+		$BB swapon -d -p 2 $ZRB # zram with cswap, NOT raid 0
+	else
+		$BB swapon -d $ZRB # zram only
+	fi
+fi
+if [ "$uksm" == "1" ]; then
+	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
+	echo 1 > /sys/kernel/mm/uksm/run
+elif [ "$ksm" == "1" ]; then
+	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
+	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
+	echo 1 > /sys/kernel/mm/ksm/run
 fi
 if [ "$lmk" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree  
