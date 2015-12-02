@@ -8,7 +8,7 @@
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v32 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v33 "
 
 # overclocking.
 # CPU 2.5 ghz
@@ -42,17 +42,11 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v32 "
 
 #   ------------------------<MEMORY>-----------------------   #
 
-# tweak memory options .
+# tweak memory options
 	echo 5486 > /proc/sys/vm/min_free_kbytes
 	echo 100 > /proc/sys/vm/swappiness # we use swap for a reason, so keep it aggressive
 	echo 100 > /proc/sys/vm/vfs_cache_pressure # keep at 100, some roms make it lower
 	echo 10 > /proc/sys/vm/dirty_background_ratio
-	echo 3 > /proc/sys/vm/page-cluster # having second thoughts about this one
-
-# tweak Low Memory Killer
-	chmod 644 /sys/module/lowmemorykiller/parameters/minfree
-	#echo "18432,23040,27648,32256,55296,80640" > /sys/module/lowmemorykiller/parameters/minfree # stock mm
-	echo "19712,24320,28928,33536,38144,42752" > /sys/module/lowmemorykiller/parameters/minfree # testing
 
 # Ultra Kernel Samepage Merging
 # hmm... does not seem to do much good on MM
@@ -111,11 +105,15 @@ CACHE=/dev/block/mmcblk0p30
 CSWAP=/cache/swap
 
 # Load override
-if [ -e "$ORID" ] || [ -e "$ORID".txt ]; then
+if [ -e "$ORID" ]; then
 	log -p i -t FI.d:01afterboot " $ORID; loading "
-	. $ORID || . "$ORID".txt
+	. $ORID
+elif [ -e "$ORID".txt ]; then
+	ORID+=.txt
+	log -p i -t FI.d:01afterboot " $ORID; loading "
+	. $ORID
 else
-	log -p i -t FI.d:01afterboot " no $ORID; skipping "
+	log -p i -t FI.d:01afterboot " no override; skipping "
 fi
 if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
