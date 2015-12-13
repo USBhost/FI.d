@@ -8,7 +8,7 @@
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v33 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v34 "
 
 # overclocking.
 # CPU 2.5 ghz
@@ -43,15 +43,19 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v33 "
 #   ------------------------<MEMORY>-----------------------   #
 
 # tweak memory options
-	echo 5486 > /proc/sys/vm/min_free_kbytes
-	echo 100 > /proc/sys/vm/swappiness # we use swap for a reason, so keep it aggressive
+	#echo 5486 > /proc/sys/vm/min_free_kbytes # dont think this is needed
 	echo 100 > /proc/sys/vm/vfs_cache_pressure # keep at 100, some roms make it lower
+	echo 60 > /proc/sys/vm/swappiness # keep it at 60, some roms make it lower
 	echo 10 > /proc/sys/vm/dirty_background_ratio
 
 # Ultra Kernel Samepage Merging
-# hmm... does not seem to do much good on MM
+# hmm... does not seem to do much good on MM.
+# dont enable UKSM if your using zram
+# because uksm does not work on swap
+# and if zram is enabled there's less memory
+# to work on aka wasting battery.
 ## (0 = default/disabled) (1 = enabled) ##
-	uksm=1
+	uksm=0
 	ksm=0 # only use this if uksm is not compiled in the kernel
 
 # Low Memory Killer.
@@ -66,7 +70,7 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v33 "
 # you can still use cswap but it
 # will be second priority.
 ## (0 = disabled) ##
-	zswap=0 # "zswap" is in MB.
+	zswap=500 # "zswap" is in MB.
 
 # swap in cache.
 # will make a swap file in /cache.
@@ -192,6 +196,9 @@ elif [ "$ksm" == "1" ]; then
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
+else # just to be safe
+	echo 0 > /sys/kernel/mm/ksm/run
+	echo 0 > /sys/kernel/mm/uksm/run
 fi
 if [ "$lmk" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree  
