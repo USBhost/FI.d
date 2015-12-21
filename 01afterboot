@@ -8,7 +8,7 @@
 # in the hopes of them being newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v34 "
+log -p i -t FI.d:01afterboot " FIRE-ICE script v35 "
 
 # overclocking.
 # CPU 2.5 ghz
@@ -45,8 +45,7 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v34 "
 # tweak memory options
 	#echo 5486 > /proc/sys/vm/min_free_kbytes # dont think this is needed
 	echo 100 > /proc/sys/vm/vfs_cache_pressure # keep at 100, some roms make it lower
-	echo 60 > /proc/sys/vm/swappiness # keep it at 60, some roms make it lower
-	echo 10 > /proc/sys/vm/dirty_background_ratio
+	echo 100 > /proc/sys/vm/swappiness # we need it at 100 for lmk to kill faster when in low memory
 
 # Ultra Kernel Samepage Merging
 # hmm... does not seem to do much good on MM.
@@ -66,7 +65,7 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v34 "
 	lmk=1
 
 # ZRAM.
-# "raid" and "aswap" will be null.
+# "aswap" will be null.
 # you can still use cswap but it
 # will be second priority.
 ## (0 = disabled) ##
@@ -86,7 +85,7 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v34 "
 ## (0 = default/disabled) (1 = enabled) ##
 	aswap=0
 
-# use "zswap" and "cswap"
+# use "cswap" with zram
 # with a raid 0 like way.
 ## (0 = default/disabled) (1 = enabled) ##
 	raid=0
@@ -105,6 +104,8 @@ CORE="$(cat /proc/cpuinfo | grep -c processor)"
 ORID=/sdcard/override
 	# cache partition
 CACHE=/dev/block/mmcblk0p30
+	# cache partition size
+PSIZE=260
 	# swap file
 CSWAP=/cache/swap
 
@@ -158,12 +159,17 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 		echo 1 > $ZRS/reset
 		echo 1 > $ZRS/max_comp_streams
 		echo lz4 > $ZRS/comp_algorithm
-		echo "$cswap"M > $ZRS/disksize
+		if [ "$cswap" != "$SIZE" ]; then
+			echo "$SIZE"M > $ZRS/disksize
+			log -p W -t FI.d:01afterboot " cache; is out of space "
+		else
+			echo "$cswap"M > $ZRS/disksize
+		fi
 		$BB mkswap $ZRB
 		$BB swapon -d -p 2 $ZRB
 	fi
 fi
-if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
+if [ "$zswap" == "0" ] && [ "$aswap" == "1" ] && [ "$raid" == "0" ]; then
 	umount /cache
 	$BB mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d:01afterboot " mounted cache as tmpfs "
 	$BB mkswap $CACHE # FIXME: make it run only once
@@ -172,12 +178,12 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		echo 1 > $ZRS/reset
 		echo 1 > $ZRS/max_comp_streams
 		echo lz4 > $ZRS/comp_algorithm
-		echo 260M > $ZRS/disksize # swap partition size
+		echo "$PSIZE"M > $ZRS/disksize
 		$BB mkswap $ZRB
 		$BB swapon -d -p 1 $ZRB
 	fi
 fi
-if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ]; then
+if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ] && [ "$raid" == "0" ]; then
 	echo 1 > $ZRS/reset
 	echo "$CORE" > $ZRS/max_comp_streams
 	echo lz4 > $ZRS/comp_algorithm
