@@ -8,21 +8,36 @@
 # the 'FI.d' folder
 # is meant for values that do not stay at boot
 
+	# busybox location
+BB=/system/etc/BB/busybox
+	# cache partition location
+CACHE=/dev/block/platform/sdhci-tegra.3/by-name/CAC
+	# if /cache is mounted
+CMOUNT=/cache/mounted
+	# for info logs
+LOGCATI="log -p i -t FI.d:00start"
 
 # wake lock is needed because if the system suspends
 # FI.d/init.d scripts will not run.
-	echo tmp_lock > /sys/power/wake_lock && log -p i -t FI.d:00start " FI.d start "
-	log -p i -t FI.d:00start "$(id)"
+	echo tmp_lock > /sys/power/wake_lock && $LOGCATI " FI.d start "
+	$LOGCATI "$(id)"
 
 # mount cache
-	/BB/busybox mount -t ext4 -o rw,barrier=0,noload,errors=continue /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
-	/BB/busybox mount -t f2fs -o rw,flush_merge,discard,background_gc=sync /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
-        /BB/busybox mount -t auto -o rw /dev/block/platform/sdhci-tegra.3/by-name/CAC /cache ||
-        log -p i -t FI.d:00start " cache; mount failed "
+	if [ ! -e "$CMOUNT" ]; then 
+		$BB mount -t ext4 -o rw,barrier=0,noload,errors=continue $CACHE /cache && touch $CMOUNT ||
+        	$BB mount -t auto -o rw $CACHE /cache && touch $CMOUNT
+		if [ ! -e "$CMOUNT" ]; then 
+        		$LOGCATI " cache; mount failed "
+		else
+			$LOGCATI " cache; mount successful "
+		fi
+	else
+		$LOGCATI " cache; is already mounted "
+	fi
 
 # start init.d
-	/BB/busybox run-parts /system/etc/init.d
+	$BB run-parts /system/etc/init.d
 
 # set wait time
 	log -p i -t FI.d:00start " 1min 30sec wait to continue"
-	/BB/busybox sleep 1m 30s
+	$BB sleep 1m 30s

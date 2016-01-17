@@ -1,24 +1,48 @@
 #!/system/bin/sh
 #
 # W.I.P. script, by USBhost. made for the Nexus 9.
-# this script is most likely universal to devises that
-# has ZRAM and/or SWAP enabled.
 #
 # i use busybox for some commands because
-# in the hopes of them being newer.
+# some of them are newer.
 #
 
-log -p i -t FI.d:01afterboot " FIRE-ICE script v35 "
+	# busybox location
+BB=/system/etc/BB/busybox
+	# zram's sys interface
+ZRS=/sys/block/zram0
+	# zram's block device
+ZRB=/dev/block/zram0
+	# cpu cores
+CORE="$(cat /proc/cpuinfo | grep -c processor)"
+	# override file
+ORID=/sdcard/override
+	# cache partition location
+CACHE=/dev/block/platform/sdhci-tegra.3/by-name/CAC
+	# cache partition size
+PSIZE=260 # PSIZE is in MB
+	# swap file
+CSWAP=/cache/swap
+	# if /cache is mounted
+CMOUNT=/cache/mounted
+	# for info logs
+LOGCATI="log -p i -t FI.d:01afterboot"
+	# for warning logs
+LOGCATW="log -p w -t FI.d:01afterboot"
+
+	# check cswap file size #FIXME: this is inefficient 
+SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
+
+
+$LOGCATI " FIRE-ICE script v36 "
 
 # overclocking.
-# CPU 2.5 ghz
 # GPU 0.984 ghz
 ## (0 = disabled) (1 = enabled)
 	oc=0
 
 # CPU Interactive Governor fix.
 # this will increase battery life
-# Note: there will be some lag
+# Note: but adding some lag
 ## (0 = disabled) (1 = enabled)
 	gfix=0
 
@@ -37,22 +61,23 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v35 "
 # set debug to NO.
 	echo 0 > /sys/kernel/debug/debug_enabled
 
-# tweak I/O 
-	echo 0 > /sys/block/mmcblk0/queue/add_random
+# for entropy 
+	echo 1 > /sys/block/mmcblk0/queue/add_random
+	echo 1 > /sys/block/zram0/queue/add_random
 
 #   ------------------------<MEMORY>-----------------------   #
 
-# tweak memory options
-	#echo 5486 > /proc/sys/vm/min_free_kbytes # dont think this is needed
-	echo 100 > /proc/sys/vm/vfs_cache_pressure # keep at 100, some roms make it lower
-	echo 100 > /proc/sys/vm/swappiness # we need it at 100 for lmk to kill faster when in low memory
+# tweak memory
+	echo 10940 > /proc/sys/vm/extra_free_kbytes # double min_free_kbytes
+	echo 100 > /proc/sys/vm/vfs_cache_pressure # set to 100 some ROMs make it lower
+	echo 100 > /proc/sys/vm/swappiness # try to use swap for lmk
 
 # Ultra Kernel Samepage Merging
 # hmm... does not seem to do much good on MM.
-# dont enable UKSM if your using zram
-# because uksm does not work on swap
-# and if zram is enabled there's less memory
-# to work on aka wasting battery.
+# You should not enable UKSM if your using zram
+# because uksm will not work on swap memory.
+# If zram is enabled there will be less memory
+# for uksm to work on aka just wasting battery.
 ## (0 = default/disabled) (1 = enabled) ##
 	uksm=0
 	ksm=0 # only use this if uksm is not compiled in the kernel
@@ -60,68 +85,53 @@ log -p i -t FI.d:01afterboot " FIRE-ICE script v35 "
 # Low Memory Killer.
 # ONLY! if your vary, vary memory conscious
 # and always clears recents, then you disable this,
-# if your not things will go bad!
-## (0 = disabled) (1 = default/enabled) ##
-	lmk=1
+# if your not things will go vary vary bad!
+## (0 = disabled) (1 = default/enabled) (2 = custom/enabled) ##
+	lmk=2
 
-# ZRAM.
+# ZRAM Only.
 # "aswap" will be null.
-# you can still use cswap but it
+# You can still use cswap but it
 # will be second priority.
 ## (0 = disabled) ##
 	zswap=500 # "zswap" is in MB.
 
-# swap in cache.
-# will make a swap file in /cache.
+# Make a swap file in /cache.
 # "cswap" must not go over 150
 # or f2fs /cache will not work.
 ## (0 = disabled) ##
 	cswap=0 # "cswap" is in MB.
 
-# make /cache all swap.
+# Make /cache all swap.
 # "cswap" will be null if enabled.
-# "swap" will be 260MB, 520MB if "raid" = 1 .
-# note: cache will be formated to swap.
+# Swap will be 260MB or 520MB if "raid" = 1 .
+# Note: /cache will be formated to swap, and
+# you will need to reboot after the first boot
 ## (0 = default/disabled) (1 = enabled) ##
 	aswap=0
 
-# use "cswap" with zram
-# with a raid 0 like way.
+# Raid 0
+# Splits memory evenly across zram and /cache swap
+# doing so makes swap about ~100% faster.
+# Can be used on "cswap" or "aswap"
 ## (0 = default/disabled) (1 = enabled) ##
 	raid=0
 
 #   ------------------------<EXPERT>-----------------------   #
 
-	# busybox location
-BB=/BB/busybox
-	# zram's sys interface
-ZRS=/sys/block/zram0
-	# zram's block device
-ZRB=/dev/block/zram0
-	# set zram's working cores
-CORE="$(cat /proc/cpuinfo | grep -c processor)"
-	# override file
-ORID=/sdcard/override
-	# cache partition
-CACHE=/dev/block/mmcblk0p30
-	# cache partition size
-PSIZE=260
-	# swap file
-CSWAP=/cache/swap
-
 # Load override
 if [ -e "$ORID" ]; then
-	log -p i -t FI.d:01afterboot " $ORID; loading "
+	$LOGCATI " $ORID; loading "
 	. $ORID
 elif [ -e "$ORID".txt ]; then
 	ORID+=.txt
-	log -p i -t FI.d:01afterboot " $ORID; loading "
+	$LOGCATI " $ORID; loading "
 	. $ORID
 else
-	log -p i -t FI.d:01afterboot " no override; skipping "
+	$LOGCATI " no override; skipping "
 fi
+$BB swapoff -a # if the user does "start FI-d" also to reset
 if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
-	SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 	if [ -e "$CSWAP" ] && [ "$SIZE" == "$cswap" ]; then
 		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
 			$BB swapon -d -p 1 $CSWAP # zram with cswap
@@ -132,17 +142,15 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 		fi
 	else
 		if [ -e $CSWAP ]; then
-			log -p i -t FI.d:01afterboot " cache; changing size "
+			$LOGCATI " cache; changing size "
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
-			SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 			if [ "$cswap" != "$SIZE" ]; then
-				log -p W -t FI.d:01afterboot " cache; is out of space "
+				$LOGCATW " cache; is out of space "
 			fi
 		else
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
-			SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 			if [ "$cswap" != "$SIZE" ]; then
-				log -p W -t FI.d:01afterboot " cache; is out of space "
+				$LOGCATW " cache; is out of space "
 			fi
 		fi
 		chmod 600 $CSWAP
@@ -161,7 +169,7 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 		echo lz4 > $ZRS/comp_algorithm
 		if [ "$cswap" != "$SIZE" ]; then
 			echo "$SIZE"M > $ZRS/disksize
-			log -p W -t FI.d:01afterboot " cache; is out of space "
+			$LOGCATW " cache; is out of space "
 		else
 			echo "$cswap"M > $ZRS/disksize
 		fi
@@ -169,11 +177,13 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 		$BB swapon -d -p 2 $ZRB
 	fi
 fi
-if [ "$zswap" == "0" ] && [ "$aswap" == "1" ] && [ "$raid" == "0" ]; then
-	umount /cache
-	$BB mount -t tmpfs -o rw tmpfs /cache && log -p i -t FI.d:01afterboot " mounted cache as tmpfs "
-	$BB mkswap $CACHE # FIXME: make it run only once
-	$BB swapon -d -p 1 $CACHE
+if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
+	if [ -e "$CMOUNT" ]; then
+		$BB umount /cache && $LOGCATI " cache; unmount successful "
+		$BB mkswap $CACHE && $LOGCATI " cache; format successful "
+	fi
+	$BB mount -t tmpfs -o rw tmpfs /cache && $LOGCATI " mounted cache as tmpfs "
+	$BB swapon -d -p 1 $CACHE # this will most likely fail if cache is formated on first startup, a reboot should fix it
 	if [ "$raid" == "1" ]; then
 		echo 1 > $ZRS/reset
 		echo 1 > $ZRS/max_comp_streams
@@ -196,22 +206,25 @@ if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ] && [ "$raid" == "0" ]; then
 	fi
 fi
 if [ "$uksm" == "1" ]; then
-	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
+	echo 500 > /sys/kernel/mm/uksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/uksm/run
 elif [ "$ksm" == "1" ]; then
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
 else # just to be safe
-	echo 0 > /sys/kernel/mm/ksm/run
-	echo 0 > /sys/kernel/mm/uksm/run
+	if [ -e /sys/kernel/mm/ksm/run ]; then
+		echo 0 > /sys/kernel/mm/ksm/run
+	elif [ -e /sys/kernel/mm/uksm/run ]; then
+		echo 0 > /sys/kernel/mm/uksm/run
+	fi
 fi
 if [ "$lmk" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree  
+elif [ "$lmk" == "2" ]; then
+	echo "7680,11776,15872,19968,24064,28160" > /sys/module/lowmemorykiller/parameters/minfree
 fi
-if [ "$oc" == "1" ]; then
-	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
-elif [ "$oc" == "0" ]; then
+if [ "$oc" == "0" ]; then
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
 	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
 fi
