@@ -33,7 +33,7 @@ LOGCATW="log -p w -t FI.d:01afterboot"
 SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 
 
-$LOGCATI " FIRE-ICE script v36 "
+$LOGCATI " FIRE-ICE script v37 "
 
 # overclocking.
 # GPU 0.984 ghz
@@ -86,8 +86,8 @@ $LOGCATI " FIRE-ICE script v36 "
 # ONLY! if your vary, vary memory conscious
 # and always clears recents, then you disable this,
 # if your not things will go vary vary bad!
-## (0 = disabled) (1 = default/enabled) (2 = custom/enabled) ##
-	lmk=2
+## (0 = disabled) (1 = system default/enabled) ##
+	lmk=1
 
 # ZRAM Only.
 # "aswap" will be null.
@@ -206,13 +206,15 @@ if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ] && [ "$raid" == "0" ]; then
 	fi
 fi
 if [ "$uksm" == "1" ]; then
-	echo 500 > /sys/kernel/mm/uksm/sleep_millisecs
+	# uksm is slower than ksm but uksm can scan everything
+	# so make sleep_millisecs the most it can go. 1000 is the max.
+	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/uksm/run
 elif [ "$ksm" == "1" ]; then
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
-else # just to be safe
+else # just to be safe, dont like errors
 	if [ -e /sys/kernel/mm/ksm/run ]; then
 		echo 0 > /sys/kernel/mm/ksm/run
 	elif [ -e /sys/kernel/mm/uksm/run ]; then
@@ -220,9 +222,7 @@ else # just to be safe
 	fi
 fi
 if [ "$lmk" == "0" ]; then
-	echo 0 > /sys/module/lowmemorykiller/parameters/minfree  
-elif [ "$lmk" == "2" ]; then
-	echo "7680,11776,15872,19968,24064,28160" > /sys/module/lowmemorykiller/parameters/minfree
+	echo 0 > /sys/module/lowmemorykiller/parameters/minfree
 fi
 if [ "$oc" == "0" ]; then
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
