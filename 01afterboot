@@ -19,8 +19,8 @@ ORID=/sdcard/override
 	# cache partition location
 CACHE=/dev/block/platform/sdhci-tegra.3/by-name/CAC
 	# cache partition size
-PSIZE=260 # PSIZE is in MB
-	# swap file
+PSIZE=260
+	# cache swap file
 CSWAP=/cache/swap
 	# if /cache is mounted
 CMOUNT=/cache/mounted
@@ -29,11 +29,7 @@ LOGCATI="log -p i -t FI.d:01afterboot"
 	# for warning logs
 LOGCATW="log -p w -t FI.d:01afterboot"
 
-	# check cswap file size #FIXME: this is inefficient 
-SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
-
-
-$LOGCATI " FIRE-ICE script v37 "
+$LOGCATI " FIRE-ICE script v38 "
 
 # overclocking.
 # GPU 0.984 ghz
@@ -61,16 +57,17 @@ $LOGCATI " FIRE-ICE script v37 "
 # set debug to NO.
 	echo 0 > /sys/kernel/debug/debug_enabled
 
-# for entropy 
-	echo 1 > /sys/block/mmcblk0/queue/add_random
-	echo 1 > /sys/block/zram0/queue/add_random
-
 #   ------------------------<MEMORY>-----------------------   #
 
-# tweak memory
-	echo 10940 > /proc/sys/vm/extra_free_kbytes # double min_free_kbytes
+# keep memory values constant
 	echo 100 > /proc/sys/vm/vfs_cache_pressure # set to 100 some ROMs make it lower
-	echo 100 > /proc/sys/vm/swappiness # try to use swap for lmk
+	echo 100 > /proc/sys/vm/swappiness # use swap as much as posable, for zram 
+
+# Allow cswap to be removed.
+# Its set to "no" because we do not need to remove
+# everytime, it just uses our mmc more than needed.
+## (yes = cswap will be removed) ##
+	sure=no
 
 # Ultra Kernel Samepage Merging
 # hmm... does not seem to do much good on MM.
@@ -79,22 +76,19 @@ $LOGCATI " FIRE-ICE script v37 "
 # If zram is enabled there will be less memory
 # for uksm to work on aka just wasting battery.
 ## (0 = default/disabled) (1 = enabled) ##
-	uksm=0
+	uksm=1
 	ksm=0 # only use this if uksm is not compiled in the kernel
 
 # Low Memory Killer.
-# ONLY! if your vary, vary memory conscious
-# and always clears recents, then you disable this,
+# ONLY! if your vary memory conscious, then you disable this,
 # if your not things will go vary vary bad!
 ## (0 = disabled) (1 = system default/enabled) ##
 	lmk=1
 
 # ZRAM Only.
-# "aswap" will be null.
-# You can still use cswap but it
-# will be second priority.
+# "aswap" and "cswap" will be null.
 ## (0 = disabled) ##
-	zswap=500 # "zswap" is in MB.
+	zswap=0 # "zswap" is in MB.
 
 # Make a swap file in /cache.
 # "cswap" must not go over 150
@@ -130,60 +124,69 @@ elif [ -e "$ORID".txt ]; then
 else
 	$LOGCATI " no override; skipping "
 fi
-$BB swapoff -a # if the user does "start FI-d" also to reset
-if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]; then
+$BB swapoff -a && echo 1 > $ZRS/reset # to keep things clean
+if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
+	SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 	if [ -e "$CSWAP" ] && [ "$SIZE" == "$cswap" ]; then
-		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
-			$BB swapon -d -p 1 $CSWAP # zram with cswap
-		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
-			$BB swapon -d -p 2 $CSWAP # raid 0
-		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
-			$BB swapon -d $CSWAP # cswap only
+		if [ "$raid" == "1" ]; then
+			$BB swapon -d -p 1 $CSWAP # raid 0
+		elif [ "$raid" == "0" ]; then
+			$BB swapon -d $CSWAP # cswap
 		fi
 	else
+		# note: if cache is out of space this will loop on every reboot which is bad.
+		# if you get "cache; is out of space" please clear empty out cache or lower cswap.
 		if [ -e $CSWAP ]; then
-			$LOGCATI " cache; changing size "
+			$LOGCATI " cache; changing size to $SIZE "
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
+			SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 			if [ "$cswap" != "$SIZE" ]; then
 				$LOGCATW " cache; is out of space "
+				$LOGCATI " cache; $cswap != $SIZE "
 			fi
 		else
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
+			SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 			if [ "$cswap" != "$SIZE" ]; then
 				$LOGCATW " cache; is out of space "
+				$LOGCATI " cache; $cswap != $SIZE "
 			fi
 		fi
 		chmod 600 $CSWAP
 		$BB mkswap $CSWAP
-		if [ "$zswap" -ge "1" ] && [ "$raid" == "0" ]; then
-			$BB swapon -d -p 1 $CSWAP # zram with cswap
-		elif [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
-			$BB swapon -d -p 2 $CSWAP # raid 0
-		elif [ "$zswap" == "0" ] && [ "$raid" == "0" ]; then
-			$BB swapon -d $CSWAP # cswap only
+		if [ "$raid" == "1" ]; then
+			$BB swapon -d -p 1 $CSWAP # raid 0
+		elif [ "$raid" == "0" ]; then
+			$BB swapon -d $CSWAP # cswap
 		fi
 	fi
-	if [ "$zswap" == "0" ] && [ "$raid" == "1" ]; then
+	if [ "$raid" == "1" ]; then
 		echo 1 > $ZRS/reset
 		echo 1 > $ZRS/max_comp_streams
 		echo lz4 > $ZRS/comp_algorithm
+		SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 		if [ "$cswap" != "$SIZE" ]; then
-			echo "$SIZE"M > $ZRS/disksize
 			$LOGCATW " cache; is out of space "
+			$LOGCATI " cache; $cswap != $SIZE "
+			$LOGCATI " raid; changing zram size to $SIZE "
+			echo "$SIZE"M > $ZRS/disksize
 		else
 			echo "$cswap"M > $ZRS/disksize
 		fi
 		$BB mkswap $ZRB
-		$BB swapon -d -p 2 $ZRB
+		$BB swapon -d -p 1 $ZRB
 	fi
 fi
 if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 	if [ -e "$CMOUNT" ]; then
-		$BB umount /cache && $LOGCATI " cache; unmount successful "
-		$BB mkswap $CACHE && $LOGCATI " cache; format successful "
+		$BB umount /cache || 
+		$LOGCATW " cache; unmount failed "
+		$BB mkswap $CACHE || 
+		$LOGCATW " cache; format failed "
 	fi
 	$BB mount -t tmpfs -o rw tmpfs /cache && $LOGCATI " mounted cache as tmpfs "
-	$BB swapon -d -p 1 $CACHE # this will most likely fail if cache is formated on first startup, a reboot should fix it
+	$BB swapon -d -p 1 $CACHE || 
+	$LOGCATI " swapon failed: please reboot "
 	if [ "$raid" == "1" ]; then
 		echo 1 > $ZRS/reset
 		echo 1 > $ZRS/max_comp_streams
@@ -193,17 +196,13 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		$BB swapon -d -p 1 $ZRB
 	fi
 fi
-if [ "$zswap" -gt "1" ] && [ "$aswap" == "0" ] && [ "$raid" == "0" ]; then
+if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > $ZRS/reset
 	echo "$CORE" > $ZRS/max_comp_streams
 	echo lz4 > $ZRS/comp_algorithm
 	echo "$zswap"M > $ZRS/disksize
 	$BB mkswap $ZRB
-	if [ "$cswap" -ge "1" ]; then
-		$BB swapon -d -p 2 $ZRB # zram with cswap, NOT raid 0
-	else
-		$BB swapon -d $ZRB # zram only
-	fi
+	$BB swapon -d $ZRB
 fi
 if [ "$uksm" == "1" ]; then
 	# uksm is slower than ksm but uksm can scan everything
@@ -214,7 +213,7 @@ elif [ "$ksm" == "1" ]; then
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
-else # just to be safe, dont like errors
+else # just to be safe, i dont like errors
 	if [ -e /sys/kernel/mm/ksm/run ]; then
 		echo 0 > /sys/kernel/mm/ksm/run
 	elif [ -e /sys/kernel/mm/uksm/run ]; then
@@ -243,6 +242,6 @@ fi
 if [ "$fc" == "1" ]; then
 	echo 1 > /sys/kernel/fast_charge/force_fast_charge
 fi
-if [ -e $CSWAP ] && [ "$cswap" == "0" ]; then
+if [ -e "$CSWAP" ] && [ "$cswap" == "0" ] && [ "$sure" = "yes" ]; then
 	rm $CSWAP
 fi
