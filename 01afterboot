@@ -29,7 +29,7 @@ LOGCATI="log -p i -t FI.d:01afterboot"
 	# for warning logs
 LOGCATW="log -p w -t FI.d:01afterboot"
 
-$LOGCATI " FIRE-ICE script v38 "
+$LOGCATI " FIRE-ICE script v39 "
 
 # overclocking.
 # GPU 0.984 ghz
@@ -60,28 +60,27 @@ $LOGCATI " FIRE-ICE script v38 "
 #   ------------------------<MEMORY>-----------------------   #
 
 # keep memory values constant
-	echo 100 > /proc/sys/vm/vfs_cache_pressure # set to 100 some ROMs make it lower
-	echo 100 > /proc/sys/vm/swappiness # use swap as much as posable, for zram 
+	echo 100 > /proc/sys/vm/swappiness # use swap as much as posable, for zram
+	echo 50 > /proc/sys/vm/vfs_cache_pressure # testing
 
 # Allow cswap to be removed.
-# Its set to "no" because we do not need to remove
-# everytime, it just uses our mmc more than needed.
+# Its set to "no" because we should not remove it
+# more than needed, removing just uses our mmc more than needed.
 ## (yes = cswap will be removed) ##
 	sure=no
 
 # Ultra Kernel Samepage Merging
-# hmm... does not seem to do much good on MM.
 # You should not enable UKSM if your using zram
-# because uksm will not work on swap memory.
-# If zram is enabled there will be less memory
-# for uksm to work on aka just wasting battery.
+# because uksm will not work on swap/zram memory.
+# Note: this will add some micro lag.
 ## (0 = default/disabled) (1 = enabled) ##
-	uksm=1
+	uksm=0
 	ksm=0 # only use this if uksm is not compiled in the kernel
 
 # Low Memory Killer.
-# ONLY! if your vary memory conscious, then you disable this,
+# ONLY! if your vary vary memory conscious, then you can disable this,
 # if your not things will go vary vary bad!
+# Disabling this is not recommend.
 ## (0 = disabled) (1 = system default/enabled) ##
 	lmk=1
 
@@ -90,13 +89,14 @@ $LOGCATI " FIRE-ICE script v38 "
 ## (0 = disabled) ##
 	zswap=0 # "zswap" is in MB.
 
-# Make a swap file in /cache.
-# "cswap" must not go over 150
-# or f2fs /cache will not work.
+# swap file in /cache.
+# "cswap" must not go over 150MB if /cache is formated to f2fs
+# Note: the size of /cache is 260MB, if there's too little free
+# space just enable "aswap=1".
 ## (0 = disabled) ##
 	cswap=0 # "cswap" is in MB.
 
-# Make /cache all swap.
+# /cache all swap.
 # "cswap" will be null if enabled.
 # Swap will be 260MB or 520MB if "raid" = 1 .
 # Note: /cache will be formated to swap, and
@@ -105,15 +105,17 @@ $LOGCATI " FIRE-ICE script v38 "
 	aswap=0
 
 # Raid 0
-# Splits memory evenly across zram and /cache swap
-# doing so makes swap about ~100% faster.
-# Can be used on "cswap" or "aswap"
+# Splits memory evenly across zram and "cswap"
+# in doing so makes cswap/aswap about ~100% faster.
+# this can be used on "cswap" or "aswap".
 ## (0 = default/disabled) (1 = enabled) ##
 	raid=0
 
 #   ------------------------<EXPERT>-----------------------   #
 
 # Load override
+# Note: be vary careful with what you put in "/sdcard/override"
+# this runs as root, so use with caution.
 if [ -e "$ORID" ]; then
 	$LOGCATI " $ORID; loading "
 	. $ORID
@@ -214,9 +216,13 @@ elif [ "$ksm" == "1" ]; then
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
 else # just to be safe, i dont like errors
+	# but still config them
 	if [ -e /sys/kernel/mm/ksm/run ]; then
+		echo 100 > /sys/kernel/mm/ksm/pages_to_scan
+		echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 		echo 0 > /sys/kernel/mm/ksm/run
 	elif [ -e /sys/kernel/mm/uksm/run ]; then
+		echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
 		echo 0 > /sys/kernel/mm/uksm/run
 	fi
 fi
