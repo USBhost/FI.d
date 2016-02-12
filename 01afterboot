@@ -29,7 +29,7 @@ LOGCATI="log -p i -t FI.d:01afterboot"
 	# for warning logs
 LOGCATW="log -p w -t FI.d:01afterboot"
 
-$LOGCATI " FIRE-ICE script v39 "
+$LOGCATI " FIRE-ICE script v40 "
 
 # overclocking.
 # GPU 0.984 ghz
@@ -61,7 +61,6 @@ $LOGCATI " FIRE-ICE script v39 "
 
 # keep memory values constant
 	echo 100 > /proc/sys/vm/swappiness # use swap as much as posable, for zram
-	echo 50 > /proc/sys/vm/vfs_cache_pressure # testing
 
 # Allow cswap to be removed.
 # Its set to "no" because we should not remove it
@@ -83,6 +82,10 @@ $LOGCATI " FIRE-ICE script v39 "
 # Disabling this is not recommend.
 ## (0 = disabled) (1 = system default/enabled) ##
 	lmk=1
+
+	# LMK wait until swap is full
+		swait=0 # (0 = system default/disabled) (1 = enabled)
+		swaitp=3 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% full to start killing
 
 # ZRAM Only.
 # "aswap" and "cswap" will be null.
@@ -212,6 +215,8 @@ if [ "$uksm" == "1" ]; then
 	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/uksm/run
 elif [ "$ksm" == "1" ]; then
+	# these values where taken from google's low memory doc
+	# for the best all-rounder performance/battery ratio.
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
@@ -228,6 +233,9 @@ else # just to be safe, i dont like errors
 fi
 if [ "$lmk" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree
+elif [ "$lmk" == "1" ] && [ "$swait" == "1" ]; then
+	echo Y > /sys/module/lowmemorykiller/parameters/swap_wait
+	echo $swaitp > /sys/module/lowmemorykiller/parameters/swap_wait_percent
 fi
 if [ "$oc" == "0" ]; then
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
