@@ -29,38 +29,42 @@ LOGCATI="log -p i -t FI.d:01afterboot"
 	# for warning logs
 LOGCATW="log -p w -t FI.d:01afterboot"
 
-$LOGCATI " FIRE-ICE script v40 "
+$LOGCATI " FIRE-ICE script v41 "
 
-# overclocking.
+# Overclocking.
 # GPU 0.984 ghz
 ## (0 = disabled) (1 = enabled)
 	oc=0
 
 # CPU Interactive Governor fix.
-# this will increase battery life
-# Note: but adding some lag
+# this will increase battery life.
+# Note: but adding some lag.
 ## (0 = disabled) (1 = enabled)
 	gfix=0
 
-# fsync
+# FSync
+# This helps reduce data corruption but
+# lowers performance.
 ## (0 = disabled) (1 = default/enabled)
 	fs=1
 
-# fast charge.
+# USB Fast Charge.
 ## (0 = default/disabled) (1 = enabled)
 	fc=1
 
-# double tap to wake
-## (0 = disabled) (1 = default/enabled)
+# Double Tap to Wake / DT2W
+## (0 = disabled) (1 = system default)
 	dtw=1
 
-# set debug to NO.
+# Set debug to NO.
+# I do not know if this does anything.
 	echo 0 > /sys/kernel/debug/debug_enabled
 
 #   ------------------------<MEMORY>-----------------------   #
 
-# keep memory values constant
-	echo 100 > /proc/sys/vm/swappiness # use swap as much as posable, for zram
+# Use swap as much as posable for zram.
+# Note: you may want to make it lower if you not using zram.
+	echo 100 > /proc/sys/vm/swappiness
 
 # Allow cswap to be removed.
 # Its set to "no" because we should not remove it
@@ -72,7 +76,7 @@ $LOGCATI " FIRE-ICE script v40 "
 # You should not enable UKSM if your using zram
 # because uksm will not work on swap/zram memory.
 # Note: this will add some micro lag.
-## (0 = default/disabled) (1 = enabled) ##
+## (0 = disabled) (1 = enabled) ##
 	uksm=0
 	ksm=0 # only use this if uksm is not compiled in the kernel
 
@@ -83,9 +87,10 @@ $LOGCATI " FIRE-ICE script v40 "
 ## (0 = disabled) (1 = system default/enabled) ##
 	lmk=1
 
-	# LMK wait until swap is full
-		swait=0 # (0 = system default/disabled) (1 = enabled)
-		swaitp=3 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% full to start killing
+# SWAP wait.
+# This controls if you want lmk to wait until swap to fill up
+	swait=0 # (0 = system default/disabled) (1 = enabled)
+	swaitp=1 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% until killing is allowed
 
 # ZRAM Only.
 # "aswap" and "cswap" will be null.
@@ -104,14 +109,14 @@ $LOGCATI " FIRE-ICE script v40 "
 # Swap will be 260MB or 520MB if "raid" = 1 .
 # Note: /cache will be formated to swap, and
 # you will need to reboot after the first boot
-## (0 = default/disabled) (1 = enabled) ##
+## (0 = disabled) (1 = enabled) ##
 	aswap=0
 
 # Raid 0
 # Splits memory evenly across zram and "cswap"
 # in doing so makes cswap/aswap about ~100% faster.
 # this can be used on "cswap" or "aswap".
-## (0 = default/disabled) (1 = enabled) ##
+## (0 = disabled) (1 = enabled) ##
 	raid=0
 
 #   ------------------------<EXPERT>-----------------------   #
@@ -212,6 +217,7 @@ fi
 if [ "$uksm" == "1" ]; then
 	# uksm is slower than ksm but uksm can scan everything
 	# so make sleep_millisecs the most it can go. 1000 is the max.
+	# note: sleep_millisecs is not the same as in ksm.
 	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/uksm/run
 elif [ "$ksm" == "1" ]; then
@@ -220,7 +226,7 @@ elif [ "$ksm" == "1" ]; then
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
-else # just to be safe, i dont like errors
+else    # just to be safe, i dont like errors
 	# but still config them
 	if [ -e /sys/kernel/mm/ksm/run ]; then
 		echo 100 > /sys/kernel/mm/ksm/pages_to_scan
