@@ -1,0 +1,26 @@
+#!/system/bin/sh
+#
+# W.I.P. script, by USBhost.
+#
+	# busybox location
+BB=/system/etc/BB/busybox
+	# zram's sys interface
+ZRS=/sys/block/zram0
+	# zram's block device
+ZRB=/dev/block/zram0
+	# cpu cores
+CORE="$(cat /proc/cpuinfo | grep -c processor)"
+	# override file
+ORID=/sdcard/override
+	# cache partition location
+CACHE=/dev/block/platform/sdhci-tegra.3/by-name/CAC
+	# cache partition size
+PSIZE=260
+	# cache swap file
+CSWAP=/cache/swap
+	# if /cache is mounted
+CMOUNT=/cache/mounted
+	# for info logs
+LOGCATI="log -p i -t FI.d:"
+	# for warning logs
+LOGCATW="log -p w -t FI.d:"

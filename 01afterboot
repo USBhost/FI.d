@@ -2,75 +2,53 @@
 #
 # W.I.P. script, by USBhost. made for the Nexus 9.
 #
-# i use busybox for some commands because
+# I use busybox for some commands because
 # some of them are newer.
 #
 
-	# busybox location
-BB=/system/etc/BB/busybox
-	# zram's sys interface
-ZRS=/sys/block/zram0
-	# zram's block device
-ZRB=/dev/block/zram0
-	# cpu cores
-CORE="$(cat /proc/cpuinfo | grep -c processor)"
-	# override file
-ORID=/sdcard/override
-	# cache partition location
-CACHE=/dev/block/platform/sdhci-tegra.3/by-name/CAC
-	# cache partition size
-PSIZE=260
-	# cache swap file
-CSWAP=/cache/swap
-	# if /cache is mounted
-CMOUNT=/cache/mounted
-	# for info logs
-LOGCATI="log -p i -t FI.d:01afterboot"
-	# for warning logs
-LOGCATW="log -p w -t FI.d:01afterboot"
+# Load Symbols
+	. /system/etc/FI.d/symbols
 
-$LOGCATI " FIRE-ICE script v41 "
+# Script pacific Symbols
+	LC="01afterboot"
 
 # Overclocking.
 # GPU 0.984 ghz
-## (0 = disabled) (1 = enabled)
+## (0 = disabled) (1 = enabled) ##
 	oc=0
 
 # CPU Interactive Governor fix.
 # this will increase battery life.
 # Note: but adding some lag.
-## (0 = disabled) (1 = enabled)
+## (0 = disabled) (1 = enabled) ##
 	gfix=0
 
 # FSync
 # This helps reduce data corruption but
 # lowers performance.
-## (0 = disabled) (1 = default/enabled)
+## (0 = disabled) (1 = default/enabled) ## 
 	fs=1
 
 # USB Fast Charge.
-## (0 = default/disabled) (1 = enabled)
+## (0 = default/disabled) (1 = enabled) ##
 	fc=1
 
 # Double Tap to Wake / DT2W
-## (0 = disabled) (1 = system default)
+## (0 = disabled) (1 = default/enabled) ##
 	dtw=1
 
-# Set debug to NO.
-# I do not know if this does anything.
-	echo 0 > /sys/kernel/debug/debug_enabled
+# Mount /data/local/tmp as tmpfs
+# This is where apps are temporary downloaded to be installed
+# when instaling from adb.
+# Note: This is vary experimental.
+## (0 = default/disabled) (1 = enabled) ##
+	mtmp=0
 
 #   ------------------------<MEMORY>-----------------------   #
 
 # Use swap as much as posable for zram.
 # Note: you may want to make it lower if you not using zram.
 	echo 100 > /proc/sys/vm/swappiness
-
-# Allow cswap to be removed.
-# Its set to "no" because we should not remove it
-# more than needed, removing just uses our mmc more than needed.
-## (yes = cswap will be removed) ##
-	sure=no
 
 # Ultra Kernel Samepage Merging
 # You should not enable UKSM if your using zram
@@ -88,14 +66,14 @@ $LOGCATI " FIRE-ICE script v41 "
 	lmk=1
 
 # SWAP wait.
-# This controls if you want lmk to wait until swap to fill up
+# This controls if you want swap to be a certain percentage before lmk starts killing.
 	swait=0 # (0 = system default/disabled) (1 = enabled)
 	swaitp=1 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% until killing is allowed
 
 # ZRAM Only.
 # "aswap" and "cswap" will be null.
 ## (0 = disabled) ##
-	zswap=0 # "zswap" is in MB.
+	zswap=250 # "zswap" is in MB.
 
 # swap file in /cache.
 # "cswap" must not go over 150MB if /cache is formated to f2fs
@@ -108,13 +86,13 @@ $LOGCATI " FIRE-ICE script v41 "
 # "cswap" will be null if enabled.
 # Swap will be 260MB or 520MB if "raid" = 1 .
 # Note: /cache will be formated to swap, and
-# you will need to reboot after the first boot
+# you will most likely need to reboot after the format.
 ## (0 = disabled) (1 = enabled) ##
 	aswap=0
 
 # Raid 0
-# Splits memory evenly across zram and "cswap"
-# in doing so makes cswap/aswap about ~100% faster.
+# Splits memory evenly across "zswap" and "cswap"
+# in doing so makes "cswap" or "aswap" about ~100% faster.
 # this can be used on "cswap" or "aswap".
 ## (0 = disabled) (1 = enabled) ##
 	raid=0
@@ -125,14 +103,14 @@ $LOGCATI " FIRE-ICE script v41 "
 # Note: be vary careful with what you put in "/sdcard/override"
 # this runs as root, so use with caution.
 if [ -e "$ORID" ]; then
-	$LOGCATI " $ORID; loading "
+	$LOGCATI$LC " $ORID; loading "
 	. $ORID
 elif [ -e "$ORID".txt ]; then
 	ORID+=.txt
-	$LOGCATI " $ORID; loading "
+	$LOGCATI$LC " $ORID; loading "
 	. $ORID
 else
-	$LOGCATI " no override; skipping "
+	$LOGCATI$LC " no override; skipping "
 fi
 $BB swapoff -a && echo 1 > $ZRS/reset # to keep things clean
 if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
@@ -147,19 +125,19 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
 		# note: if cache is out of space this will loop on every reboot which is bad.
 		# if you get "cache; is out of space" please clear empty out cache or lower cswap.
 		if [ -e $CSWAP ]; then
-			$LOGCATI " cache; changing size to $SIZE "
+			$LOGCATI$LC " cache; changing size to $SIZE "
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
 			SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 			if [ "$cswap" != "$SIZE" ]; then
-				$LOGCATW " cache; is out of space "
-				$LOGCATI " cache; $cswap != $SIZE "
+				$LOGCATW$LC " cache; is out of space "
+				$LOGCATI$LC " cache; $cswap != $SIZE "
 			fi
 		else
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
 			SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 			if [ "$cswap" != "$SIZE" ]; then
-				$LOGCATW " cache; is out of space "
-				$LOGCATI " cache; $cswap != $SIZE "
+				$LOGCATW$LC " cache; is out of space "
+				$LOGCATI$LC " cache; $cswap != $SIZE "
 			fi
 		fi
 		chmod 600 $CSWAP
@@ -176,9 +154,9 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
 		echo lz4 > $ZRS/comp_algorithm
 		SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 		if [ "$cswap" != "$SIZE" ]; then
-			$LOGCATW " cache; is out of space "
-			$LOGCATI " cache; $cswap != $SIZE "
-			$LOGCATI " raid; changing zram size to $SIZE "
+			$LOGCATW$LC " cache; is out of space "
+			$LOGCATI$LC " cache; $cswap != $SIZE "
+			$LOGCATI$LC " raid; changing zram size to $SIZE "
 			echo "$SIZE"M > $ZRS/disksize
 		else
 			echo "$cswap"M > $ZRS/disksize
@@ -190,13 +168,13 @@ fi
 if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 	if [ -e "$CMOUNT" ]; then
 		$BB umount /cache || 
-		$LOGCATW " cache; unmount failed "
+		$LOGCATW$LC " cache; unmount failed "
 		$BB mkswap $CACHE || 
-		$LOGCATW " cache; format failed "
+		$LOGCATW$LC " cache; format failed "
 	fi
-	$BB mount -t tmpfs -o rw tmpfs /cache && $LOGCATI " mounted cache as tmpfs "
+	$BB mount -t tmpfs -o rw,mode=1777 tmpfs /cache && $LOGCATI$LC " mounted cache as tmpfs "
 	$BB swapon -d -p 1 $CACHE || 
-	$LOGCATI " swapon failed: please reboot "
+	$LOGCATI$LC " swapon failed: please reboot "
 	if [ "$raid" == "1" ]; then
 		echo 1 > $ZRS/reset
 		echo 1 > $ZRS/max_comp_streams
@@ -250,6 +228,7 @@ fi
 if [ "$gfix" == "1" ]; then
 	echo 612000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
+	# then lock them to stop any process from changing it. 
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 fi
@@ -262,6 +241,9 @@ fi
 if [ "$fc" == "1" ]; then
 	echo 1 > /sys/kernel/fast_charge/force_fast_charge
 fi
-if [ -e "$CSWAP" ] && [ "$cswap" == "0" ] && [ "$sure" = "yes" ]; then
+if [ "$mtmp" == "1" ]; then
+	$BB mount -t tmpfs -o rw,mode=1777 tmpfs /data/local/tmp
+fi
+if [ -e "$CSWAP" ] && [ "$cswap" == "0" ]; then
 	rm $CSWAP
 fi

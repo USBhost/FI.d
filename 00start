@@ -2,42 +2,40 @@
 #
 # W.I.P. script, by USBhost.
 #
-# i use busybox for some commands because
+# I use busybox for some commands because
 # in the hopes of them being newer.
 #
-# the 'FI.d' folder
+# The 'FI.d' folder
 # is meant for values that do not stay at boot
 
-	# busybox location
-BB=/system/etc/BB/busybox
-	# cache partition location
-CACHE=/dev/block/platform/sdhci-tegra.3/by-name/CAC
-	# if /cache is mounted
-CMOUNT=/cache/mounted
-	# for info logs
-LOGCATI="log -p i -t FI.d:00start"
+# Load Symbols
+	. /system/etc/FI.d/symbols
 
-# wake lock is needed because if the system suspends
+# Script pacific Symbols
+	LC="00start"
+
+# Wake lock is needed because if the system suspends
 # FI.d/init.d scripts will not run.
-	echo tmp_lock > /sys/power/wake_lock && $LOGCATI " FI.d start "
-	$LOGCATI "$(id)"
+	echo tmp_lock > /sys/power/wake_lock && $LOGCATI$LC " FI.d start v42"
+	$LOGCATI$LC "$(id)"
 
-# mount cache
+# Mount cache
 	if [ ! -e "$CMOUNT" ]; then 
-		$BB mount -t ext4 -o rw,barrier=0,noload,errors=continue $CACHE /cache && touch $CMOUNT ||
+		$BB mount -t ext4 -o rw,nobarrier,noload,errors=continue $CACHE /cache && touch $CMOUNT ||
         	$BB mount -t auto -o rw $CACHE /cache && touch $CMOUNT
 		if [ ! -e "$CMOUNT" ]; then 
-        		$LOGCATI " cache; mount failed "
+        		$LOGCATI$LC " cache; mount failed "
 		else
-			$LOGCATI " cache; mount successful "
+			$LOGCATI$LC " cache; mount successful "
+			$BB fstrim /cache
 		fi
 	else
-		$LOGCATI " cache; is already mounted "
+		$LOGCATI$LC " cache; is already mounted "
 	fi
 
-# start init.d
+# Start init.d
 	$BB run-parts /system/etc/init.d
 
-# set wait time
-	log -p i -t FI.d:00start " 1min 30sec wait to continue"
+# Wait to continue
+	$LOGCATI$LC " 1min 30sec wait to continue "
 	$BB sleep 1m 30s

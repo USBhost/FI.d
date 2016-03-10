@@ -3,10 +3,16 @@
 # W.I.P. script, made by USBhost.
 #
 
-# turn on led
+# Load Symbols
+	. /system/etc/FI.d/symbols
+
+# Script pacific Symbols
+	LC="99stop"
+
+# Turn on led
 	echo 1 > /sys/class/htc_sensorhub/sensor_hub/led_en
 	sleep 2
 	echo 0 > /sys/class/htc_sensorhub/sensor_hub/led_en
 
-# resume suspend
-	echo tmp_lock > /sys/power/wake_unlock && log -p i -t FI.d:99stop " Done "
+# Allow suspend
+	echo tmp_lock > /sys/power/wake_unlock && $LOGCATI$LC " Done "
