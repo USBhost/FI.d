@@ -68,12 +68,14 @@
 # SWAP wait.
 # This controls if you want swap to be a certain percentage before lmk starts killing.
 	swait=0 # (0 = system default/disabled) (1 = enabled)
-	swaitp=1 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% until killing is allowed
+                # This will account free swap space in lmk if enabled.
+	swaitp=00 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% until killing is allowed
+                  # 00=off will not enforce.
 
 # ZRAM Only.
 # "aswap" and "cswap" will be null.
 ## (0 = disabled) ##
-	zswap=250 # "zswap" is in MB.
+	zswap=500 # "zswap" is in MB.
 
 # swap file in /cache.
 # "cswap" must not go over 150MB if /cache is formated to f2fs
@@ -219,7 +221,9 @@ if [ "$lmk" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree
 elif [ "$lmk" == "1" ] && [ "$swait" == "1" ]; then
 	echo Y > /sys/module/lowmemorykiller/parameters/swap_wait
-	echo $swaitp > /sys/module/lowmemorykiller/parameters/swap_wait_percent
+	if [ "$swaitp" != "00" ]; then
+		echo $swaitp > /sys/module/lowmemorykiller/parameters/swap_wait_percent
+	fi
 fi
 if [ "$oc" == "0" ]; then
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
