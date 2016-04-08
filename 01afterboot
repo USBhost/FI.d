@@ -46,14 +46,10 @@
 
 #   ------------------------<MEMORY>-----------------------   #
 
-# Use swap as much as posable for zram.
-# Note: you may want to make it lower if you not using zram.
-	echo 100 > /proc/sys/vm/swappiness
-
 # Ultra Kernel Samepage Merging
 # You should not enable UKSM if your using zram
-# because uksm will not work on swap/zram memory.
-# Note: this will add some micro lag.
+# because uksm/ksm will not work on swap/zram memory.
+# Note: this may or may not add lag.
 ## (0 = disabled) (1 = enabled) ##
 	uksm=0
 	ksm=0 # only use this if uksm is not compiled in the kernel
@@ -66,7 +62,7 @@
 	lmk=1
 
 # SWAP wait.
-# This controls if you want swap to be a certain percentage before lmk starts killing.
+# This controls if you want swap to be at a certain percent full before lmk starts killing.
 	swait=0 # (0 = system default/disabled) (1 = enabled)
                 # This will account free swap space in lmk if enabled.
 	swaitp=00 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% until killing is allowed
@@ -79,8 +75,7 @@
 
 # swap file in /cache.
 # "cswap" must not go over 150MB if /cache is formated to f2fs
-# Note: the size of /cache is 260MB, if there's too little free
-# space just enable "aswap=1".
+# Note: the size of /cache is 260MB.
 ## (0 = disabled) ##
 	cswap=0 # "cswap" is in MB.
 
@@ -119,13 +114,13 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
 	SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 	if [ -e "$CSWAP" ] && [ "$SIZE" == "$cswap" ]; then
 		if [ "$raid" == "1" ]; then
-			$BB swapon -d -p 1 $CSWAP # raid 0
+			$BB swapon -p 1 $CSWAP # raid 0
 		elif [ "$raid" == "0" ]; then
-			$BB swapon -d $CSWAP # cswap
+			$BB swapon $CSWAP # cswap
 		fi
 	else
 		# note: if cache is out of space this will loop on every reboot which is bad.
-		# if you get "cache; is out of space" please clear empty out cache or lower cswap.
+		# if you get "cache; is out of space" please empty out cache or lower cswap.
 		if [ -e $CSWAP ]; then
 			$LOGCATI$LC " cache; changing size to $SIZE "
 			dd if=/dev/zero of=$CSWAP bs="$cswap"m count=1
@@ -145,9 +140,9 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
 		chmod 600 $CSWAP
 		$BB mkswap $CSWAP
 		if [ "$raid" == "1" ]; then
-			$BB swapon -d -p 1 $CSWAP # raid 0
+			$BB swapon -p 1 $CSWAP # raid 0
 		elif [ "$raid" == "0" ]; then
-			$BB swapon -d $CSWAP # cswap
+			$BB swapon $CSWAP # cswap
 		fi
 	fi
 	if [ "$raid" == "1" ]; then
@@ -164,7 +159,7 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
 			echo "$cswap"M > $ZRS/disksize
 		fi
 		$BB mkswap $ZRB
-		$BB swapon -d -p 1 $ZRB
+		$BB swapon -p 1 $ZRB
 	fi
 fi
 if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
@@ -175,7 +170,7 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		$LOGCATW$LC " cache; format failed "
 	fi
 	$BB mount -t tmpfs -o rw,mode=1777 tmpfs /cache && $LOGCATI$LC " mounted cache as tmpfs "
-	$BB swapon -d -p 1 $CACHE || 
+	$BB swapon -p 1 $CACHE || 
 	$LOGCATI$LC " swapon failed: please reboot "
 	if [ "$raid" == "1" ]; then
 		echo 1 > $ZRS/reset
@@ -183,7 +178,7 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		echo lz4 > $ZRS/comp_algorithm
 		echo "$PSIZE"M > $ZRS/disksize
 		$BB mkswap $ZRB
-		$BB swapon -d -p 1 $ZRB
+		$BB swapon -p 1 $ZRB
 	fi
 fi
 if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
@@ -192,7 +187,7 @@ if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	echo lz4 > $ZRS/comp_algorithm
 	echo "$zswap"M > $ZRS/disksize
 	$BB mkswap $ZRB
-	$BB swapon -d $ZRB
+	$BB swapon $ZRB
 fi
 if [ "$uksm" == "1" ]; then
 	# uksm is slower than ksm but uksm can scan everything
@@ -221,6 +216,8 @@ if [ "$lmk" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree
 elif [ "$lmk" == "1" ] && [ "$swait" == "1" ]; then
 	echo Y > /sys/module/lowmemorykiller/parameters/swap_wait
+	# use swap as much as posable if not you will get a lot more lag.
+	echo 100 > /proc/sys/vm/swappiness
 	if [ "$swaitp" != "00" ]; then
 		echo $swaitp > /sys/module/lowmemorykiller/parameters/swap_wait_percent
 	fi
@@ -230,9 +227,8 @@ if [ "$oc" == "0" ]; then
 	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
 fi
 if [ "$gfix" == "1" ]; then
-	echo 612000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
-	echo "65 510000:75 714000:85" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
-	# then lock them to stop any process from changing it. 
+	echo 510000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+	echo "80" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
 	chmod 444 /sys/devices/system/cpu/cpufreq/interactive/target_loads
 fi
