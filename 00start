@@ -25,7 +25,7 @@
         	$BB mount -t auto -o rw $CACHE /cache && touch $CMOUNT
 		if [ ! -e "$CMOUNT" ]; then 
         		$LOGCATI$LC " cache; mount failed "
-		else
+		elif [ -e "$CMOUNT" ]; then 
 			$LOGCATI$LC " cache; mount successful "
 			$BB fstrim /cache
 		fi
@@ -34,7 +34,9 @@
 	fi
 
 # Start init.d
-	$BB run-parts /system/etc/init.d
+	if [ ! -e /system/bin/sysinit ]; then
+		$BB run-parts /system/etc/init.d
+	fi
 
 # Wait to continue
 	$LOGCATI$LC " 1min 30sec wait to continue "
