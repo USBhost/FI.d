@@ -109,9 +109,8 @@ elif [ -e "$ORID".txt ]; then
 else
 	$LOGCATI$LC " no override; skipping "
 fi
-# Note: swapon -p<> 
 $BB swapoff -a && echo 1 > $ZRS/reset # to keep things clean
-if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
+if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ] && [ -e "$CMOUNT" ] && [ "$zswap" == "0" ]; then
 	SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 	if [ -e "$CSWAP" ] && [ "$SIZE" == "$cswap" ]; then
 		if [ "$raid" == "1" ]; then
@@ -120,7 +119,7 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
 			$BB swapon $CSWAP # cswap
 		fi
 	else
-		# if cswap is more than the free sace left in cache then this will loop on every reboot which is vary bad.
+		# if cswap is more than the free space left in cache then this will loop on every reboot which is vary bad.
 		# if you get "cache; is out of space" error please lower cswap size.
 		if [ -e $CSWAP ]; then
 			$LOGCATI$LC " cache; changing size to $SIZE "
@@ -153,8 +152,8 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ]&& [ "$zswap" == "0" ]; then
 		SIZE="$($BB du -h $CSWAP | grep -o '[0-9]*')"
 		if [ "$cswap" != "$SIZE" ]; then
 			$LOGCATW$LC " cache; is out of space "
-			$LOGCATW$LC " cache; $cswap != $SIZE "
-			$LOGCATW$LC " raid; changing zram size to $SIZE "
+			$LOGCATI$LC " cache; $cswap != $SIZE "
+			$LOGCATI$LC " raid; changing zram size to $SIZE "
 			echo "$SIZE"M > $ZRS/disksize
 		else
 			echo "$cswap"M > $ZRS/disksize
@@ -166,23 +165,33 @@ fi
 if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 	if [ -e "$CMOUNT" ]; then
 		$BB umount /cache
-		if [ -e "$CMOUNT" ]; then 
-			$BB umount /cache || 
-			$LOGCATW$LC " cache; unmount failed "
-			$BB mkswap $CACHE || 
+		if [ ! -e "$CMOUNT" ]; then
+			aswap="1" # if so this is still 1  
+			$LOGCATI$LC " cache; unmount success "
+			$BB mkswap $CACHE ||
 			$LOGCATW$LC " cache; format failed "
+		elif [ -e "$CMOUNT" ]; then
+			aswap="0"
+			$LOGCATW$LC " cache; unmount failed "
+			reason="cache is still mounted"
+			$LOGCATI$LC " cache; format skipped, $reason "
 		fi
 	fi
-	$BB mount -t tmpfs -o rw,mode=1777 tmpfs /cache && $LOGCATI$LC " mounted cache as tmpfs "
-	$BB swapon -p 1 $CACHE || 
-	$LOGCATW$LC " swapon failed "
-	if [ "$raid" == "1" ]; then
-		echo 1 > $ZRS/reset
-		echo 1 > $ZRS/max_comp_streams
-		echo lz4 > $ZRS/comp_algorithm
-		echo "$PSIZE"M > $ZRS/disksize
-		$BB mkswap $ZRB
-		$BB swapon -p 1 $ZRB
+	if [ "$aswap" == "1" ]; then
+		$BB mount -t tmpfs -o rw,mode=1777 tmpfs /cache &&
+		$LOGCATI$LC " mounted cache as tmpfs "
+		$BB swapon -p 1 $CACHE || 
+		$LOGCATW$LC " swapon failed "
+		if [ "$raid" == "1" ]; then
+			echo 1 > $ZRS/reset
+			echo 1 > $ZRS/max_comp_streams
+			echo lz4 > $ZRS/comp_algorithm
+			echo "$PSIZE"M > $ZRS/disksize
+			$BB mkswap $ZRB
+			$BB swapon -p 1 $ZRB
+		fi
+	elif [ "$aswap" == "0" ]; then
+		$LOGCATI$LC "aswap skipped; $reason"
 	fi
 fi
 if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then

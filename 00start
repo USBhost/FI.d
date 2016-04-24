@@ -16,7 +16,7 @@
 
 # Wake lock is needed because if the system suspends
 # FI.d/init.d scripts will not run.
-	echo tmp_lock > /sys/power/wake_lock && $LOGCATI$LC " FI.d start v42"
+	echo tmp_lock > /sys/power/wake_lock
 	$LOGCATI$LC "$(id)"
 
 # Mount cache
@@ -30,6 +30,9 @@
 			$BB fstrim /cache
 		fi
 	else
+		if [ ! -e "$CMOUNT" ]; then
+			touch $CMOUNT
+		fi
 		$LOGCATI$LC " cache; is already mounted "
 	fi
 

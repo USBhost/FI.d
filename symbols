@@ -3,23 +3,23 @@
 # W.I.P. script, by USBhost.
 #
 	# busybox location
-BB=/system/etc/BB/busybox
+BB="/system/etc/BB/busybox"
 	# zram's sys interface
-ZRS=/sys/block/zram0
+ZRS="/sys/block/zram0"
 	# zram's block device
-ZRB=/dev/block/zram0
+ZRB="/dev/block/zram0"
 	# cpu cores
 CORE="$(cat /proc/cpuinfo | grep -c processor)"
 	# override file
-ORID=/sdcard/override
+ORID="/sdcard/override"
 	# cache partition location
-CACHE=/dev/block/platform/sdhci-tegra.3/by-name/CAC
+CACHE="/dev/block/platform/sdhci-tegra.3/by-name/CAC"
 	# cache partition size
-PSIZE=260
+PSIZE="260"
 	# cache swap file
-CSWAP=/cache/swap
+CSWAP="/cache/swap"
 	# if /cache is mounted
-CMOUNT=/cache/mounted
+CMOUNT="/cache/mounted"
 	# for info logs
 LOGCATI="log -p i -t FI.d:"
 	# for warning logs
