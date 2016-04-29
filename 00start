@@ -20,19 +20,19 @@
 	$LOGCATI$LC "$(id)"
 
 # Mount cache
-	if [ ! -e "$CMOUNT" ]; then 
-		$BB mount -t ext4 -o rw,nobarrier,noload,errors=continue $CACHE /cache && touch $CMOUNT ||
-        	$BB mount -t auto -o rw $CACHE /cache && touch $CMOUNT
-		if [ ! -e "$CMOUNT" ]; then 
+	# FIXME: 00start does not know if aswap is being used
+	MCACHE
+	if [ "$MCACHE" == "" ]; then 
+		$BB mount -t ext4 -o rw,nobarrier,errors=continue $CACHE /cache ||
+        	$BB mount -t auto -o rw $CACHE /cache
+		MCACHE
+		if [ "$MCACHE" != "$CACHE" ]; then
         		$LOGCATI$LC " cache; mount failed "
-		elif [ -e "$CMOUNT" ]; then 
+		elif [ "$MCACHE" == "$CACHE" ]; then
 			$LOGCATI$LC " cache; mount successful "
 			$BB fstrim /cache
 		fi
-	else
-		if [ ! -e "$CMOUNT" ]; then
-			touch $CMOUNT
-		fi
+	elif [ "$MCACHE" == "$CACHE" ]; then
 		$LOGCATI$LC " cache; is already mounted "
 	fi
 
@@ -42,5 +42,5 @@
 	fi
 
 # Wait to continue
-	$LOGCATI$LC " 1min 30sec wait to continue "
-	$BB sleep 1m 30s
+	$LOGCATI$LC " 1min wait to continue "
+	$BB sleep 1m
