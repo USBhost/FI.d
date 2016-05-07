@@ -62,34 +62,35 @@
 	lmk=1
 
 # SWAP wait.
-# This controls if you want swap to be at a certain percent full before lmk starts killing.
+# This controls if you want swap to be at a certain percent until full before lmk starts killing.
 	swait=0 # (0 = system default/disabled) (1 = enabled)
-                # This will account free swap space in lmk if enabled.
+                # This will account free swap in lmk if enabled.
 	swaitp=00 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% until killing is allowed
                   # 00=off will not enforce.
 
 # ZRAM Only.
 # "aswap" and "cswap" will be null.
 ## (0 = disabled) ##
-	zswap=500 # "zswap" is in MB.
+	zswap=256 # "zswap" is in MB.
 
 # swap file in /cache.
 # "cswap" must not go over 150MB if /cache is formated to f2fs
-# Note: the size of /cache is 260MB.
+# Note: the size of /cache is 256MB.
 ## (0 = disabled) ##
 	cswap=0 # "cswap" is in MB.
 
 # /cache all swap.
 # "cswap" will be null if enabled.
-# Swap will be 260MB or 520MB if "raid" = 1 .
-# Note: /cache will be formated to swap, and
-# you will most likely need to reboot after the format.
+# Swap will be 256MB or 512MB if "raid" = 1 .
+# Note: cache will be formated to swap 
+# also your EMMC will be used a lot aka shorter lifespan.
 ## (0 = disabled) (1 = enabled) ##
 	aswap=0
 
 # Raid 0
-# Splits memory evenly across "zswap" and "cswap"
-# in doing so makes "cswap" or "aswap" about ~100% faster.
+# Splits memory evenly across "zswap" and "cswap".
+# In doing so makes "cswap" or "aswap" about ~100% faster 
+# but if they are too big you will get a lot of lag.
 # this can be used on "cswap" or "aswap".
 ## (0 = disabled) (1 = enabled) ##
 	raid=0
@@ -117,6 +118,7 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ] && [ "$zswap" == "0" ] && [ "$MCA
 	if [ ! -e "$CSWAP" ] || [ "$CSIZE" != "$cswap" ]; then # to make or change cswap
 		# if cswap is more than the free space left in cache then this will loop on every reboot which is vary bad.
 		# if you get "cache; is out of space" error please lower cswap size.
+		# FIXME: try to fix this problem
 		if [ -e $CSWAP ] && [ "$CSIZE" != "$cswap" ]; then
 			$LOGCATI$LC " cache; changing cswap size to $cswap "
 		fi
@@ -198,20 +200,19 @@ if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	$BB mkswap $ZRB
 	$BB swapon $ZRB
 fi
-if [ "$uksm" == "1" ]; then
+if [ "$uksm" == "1" ] && [ -e /sys/kernel/mm/uksm/run ]; then
 	# uksm is slower than ksm but uksm can scan everything
 	# so make sleep_millisecs the most it can go. 1000 is the max.
 	# note: sleep_millisecs is not the same as in ksm.
 	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/uksm/run
-elif [ "$ksm" == "1" ]; then
+elif [ "$ksm" == "1" ] && [ -e /sys/kernel/mm/uksm/run ]; then
 	# these values where taken from google's low memory doc
 	# for the best all-rounder performance/battery ratio.
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
 	echo 1 > /sys/kernel/mm/ksm/run
-else    # just to be safe, i dont like errors
-	# but still config them
+else    # just to be safe, still config them.
 	if [ -e /sys/kernel/mm/ksm/run ]; then
 		echo 100 > /sys/kernel/mm/ksm/pages_to_scan
 		echo 500 > /sys/kernel/mm/ksm/sleep_millisecs
@@ -225,8 +226,11 @@ if [ "$lmk" == "0" ]; then
 	echo 0 > /sys/module/lowmemorykiller/parameters/minfree
 elif [ "$lmk" == "1" ] && [ "$swait" == "1" ]; then
 	echo Y > /sys/module/lowmemorykiller/parameters/swap_wait
-	# use swap as much as posable if not you will get a lot more lag.
-	echo 100 > /proc/sys/vm/swappiness
+	if [ "$raid" == "1" ] || [ "$zswap" -gt "$PSIZE" ]; then
+		# use swap as much as posable if not you will get a lot more lag.
+		# because in flounder if free memory goes below ~250MB things will get vary lagy.
+		echo 100 > /proc/sys/vm/swappiness
+	fi
 	if [ "$swaitp" != "00" ]; then
 		echo $swaitp > /sys/module/lowmemorykiller/parameters/swap_wait_percent
 	fi
