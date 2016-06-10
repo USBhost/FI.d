@@ -9,38 +9,37 @@
 # is meant for values that do not stay at boot
 
 # Load Symbols
-	. /system/etc/FI.d/symbols
+	. /system/etc/FI.d/symbols;
 
 # Script pacific Symbols
-	LC="00start"
+	LC="00start";
 
 # Wake lock is needed because if the system suspends
 # FI.d/init.d scripts will not run.
-	echo tmp_lock > /sys/power/wake_lock
-	$LOGCATI$LC "$(id)"
+	echo tmp_lock > /sys/power/wake_lock;
+	$LOGCATI$LC "$(id)";
 
 # Mount cache
-	# FIXME: 00start does not know if aswap is being used
-	MCACHE
+	# FIXME: 00start doesn't know if cache is swap
+	MCACHE;
 	if [ "$MCACHE" == "" ]; then 
-		$BB mount -t ext4 -o rw,nobarrier,errors=continue $CACHE /cache ||
-        	$BB mount -t auto -o rw $CACHE /cache
-		MCACHE
+		$BB mount -t auto -o rw $CACHE /cache;
+		MCACHE;
 		if [ "$MCACHE" != "$CACHE" ]; then
-        		$LOGCATI$LC " cache; mount failed "
+        		$LOGCATI$LC " cache; mount failed ";
 		elif [ "$MCACHE" == "$CACHE" ]; then
-			$LOGCATI$LC " cache; mount successful "
-			$BB fstrim /cache
+			$LOGCATI$LC " cache; mount successful ";
+			$BB fstrim /cache;
 		fi
 	elif [ "$MCACHE" == "$CACHE" ]; then
-		$LOGCATI$LC " cache; is already mounted "
+		$LOGCATI$LC " cache; is already mounted ";
 	fi
 
 # Start init.d
 	if [ ! -e /system/bin/sysinit ]; then
-		$BB run-parts /system/etc/init.d
+		$BB run-parts /system/etc/init.d;
 	fi
 
 # Wait to continue
-	$LOGCATI$LC " 1min wait to continue "
-	$BB sleep 1m
+	$LOGCATI$LC " 1min wait to continue ";
+	$BB sleep 1m;

@@ -2,35 +2,39 @@
 #
 # W.I.P. script, by USBhost.
 #
+
+# debug FI.d
+	set -x
+
 	# busybox location
-BB="/system/etc/BB/busybox"
+BB="/system/etc/BB/busybox";
 	# zram's sys interface
-ZRS="/sys/block/zram0"
+ZRS="/sys/block/zram0";
 	# zram's block device
-ZRB="/dev/block/zram0"
+ZRB="/dev/block/zram0";
 	# cpu cores
-CORE="$(cat /proc/cpuinfo | grep -c processor)"
+CORE="$(cat /proc/cpuinfo | grep -c processor)";
 	# override file
-ORID="/sdcard/override"
+ORID="/sdcard/override";
 	# cache partition location
-CACHE="/dev/block/platform/sdhci-tegra.3/by-name/CAC"
+CACHE="/dev/block/platform/sdhci-tegra.3/by-name/CAC";
 	# cache partition size
-PSIZE="256"
+PSIZE="256";
 	# cache swap file
-CSWAP="/cache/swap"
+CSWAP="/cache/swap";
 	# for info logs
-LOGCATI="log -p i -t FI.d:"
+LOGCATI="log -p i -t FI.d:";
 	# for warning logs
-LOGCATW="log -p w -t FI.d:"
+LOGCATW="log -p w -t FI.d:";
 
 
 	# size of cswap
 CSIZE () 
 {
-CSIZE="$($BB du -h $CSWAP | $BB grep -o $cswap)" 
+	CSIZE="$($BB du -h $CSWAP | $BB grep -o $cswap)";
 }
 	# cache mount check
 MCACHE () 
 {
-MCACHE="$($BB mount | $BB grep -o $CACHE)" 
+	MCACHE="$($BB mount | $BB grep -o $CACHE)";
 }
