@@ -12,7 +12,8 @@
 # Script pacific Symbols
 	LC="01afterboot"
 
-# Overclocking.
+# overclocking.
+# CPU 2.5 ghz
 # GPU 0.984 ghz
 ## (0 = disabled) (1 = enabled) ##
 	oc=0
@@ -20,8 +21,9 @@
 # CPU Interactive Governor fix.
 # this will increase battery life.
 # Note: but adding some lag.
-## (0 = disabled) (1 = enabled) ##
-	gfix=0
+	gfix=0 ## (0 = disabled) (1 = enabled) ##
+	gpfix=70 # % until the cpu to jumps frequencies
+		 # (debugging).
 
 # FSync
 # This helps reduce data corruption but
@@ -33,26 +35,16 @@
 ## (0 = default/disabled) (1 = enabled) ##
 	fc=1
 
-# Double Tap to Wake / DT2W
-## (0 = disabled) (1 = default/enabled) ##
-	dtw=1
-
 #   ------------------------<MEMORY>-----------------------   #
 
-# Ultra Kernel Samepage Merging
-# You should not enable UKSM if your using zram
-# because uksm/ksm will not work on swap/zram memory.
+# Ultra Kernel Samepage Merging/Kernel Samepage Merging
+# You should not enable UKSM/KSM if your using zram
+# because it wont work on swap/zram memory.
 # Note: this may or may not add lag.
+# 	only one is compiled in the kernel UKSM or KSM.
 ## (0 = disabled) (1 = enabled) ##
 	uksm=0
-	ksm=0 # only use this if uksm is not compiled in the kernel
-
-# Low Memory Killer.
-# ONLY! if your vary vary memory conscious, then you can disable this,
-# if your not things will go vary vary bad!
-# Disabling this is not recommend.
-## (0 = disabled) (1 = system default/enabled) ##
-	lmk=1
+	ksm=0
 
 # SWAP wait.
 # This controls if you want swap to be at a certain percent until full before lmk starts killing.
@@ -83,7 +75,7 @@
 # Raid 0
 # Splits memory evenly across "zswap" and "cswap".
 # In doing so makes "cswap" or "aswap" about ~100% faster 
-# but if they are too big you will get a lot of lag.
+# but if it's too big you will get a lot of lag.
 # this can be used on "cswap" or "aswap".
 ## (0 = disabled) (1 = enabled) ##
 	raid=0
@@ -91,13 +83,11 @@
 #   ------------------------<EXPERT>-----------------------   #
 
 # Load override
-# Note: be vary careful with what you put in "/sdcard/override"
-# this runs as root, so use with caution.
+# This is where you would put all your desired settings to (if you want to)
+# "/sdcard/override", so you dont't have to edit system on every update.
+# Note: be vary careful with what you put in this runs as root, 
+# so use with caution.
 if [ -e "$ORID" ]; then
-	$LOGCATI$LC " $ORID; loading ";
-	. $ORID;
-elif [ -e "$ORID".txt ]; then
-	ORID+=.txt;
 	$LOGCATI$LC " $ORID; loading ";
 	. $ORID;
 else
@@ -111,22 +101,22 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ] && [ "$zswap" == "0" ] && [ "$MCA
 	if [ ! -e "$CSWAP" ] || [ "$CSIZE" != "$cswap" ]; then # to make or change cswap
 		# if cswap is more than the free space left in cache then this will loop on every reboot which is vary bad.
 		# if you get "cache; is out of space" error please lower cswap size.
-		# FIXME: try to fix this problem
+		# FIXME: try to fix this problem.
 		if [ -e $CSWAP ] && [ "$CSIZE" != "$cswap" ]; then
 			$LOGCATI$LC " cache; changing cswap size to $cswap ";
 		fi
 		$BB dd if=/dev/zero of=$CSWAP bs="$cswap"M count=1;
-		format="1"; # if cswap size changed and/or made we must reformat/format it back to swap
+		format="1"; # if cswap size changed and/or was made we must format it to swap.
 		CSIZE;
 		if [ "$cswap" != "$CSIZE" ]; then # if so this is bad!
-			cswap="0"; # stop cswap from being used for the user to know faster
+			cswap="0"; # stop cswap from being used so the user can know sooner.
 			format="0";
 			$LOGCATW$LC " cache; is out of space ";
 			reason="out of space";
 		fi
 	fi
 	if [ "$cswap" != "0" ]; then # if so all is good!
-		chmod 600 $CSWAP; # make sure root can only read it
+		chmod 600 $CSWAP; # make sure root can only read and write to it.
 		if [ "$format" == "1" ]; then
 			$BB mkswap $CSWAP;
 		fi
@@ -149,7 +139,7 @@ if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ] && [ "$zswap" == "0" ] && [ "$MCA
 fi
 if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 	MCACHE;
-	if [ "$MCACHE" == "$CACHE" ]; then # if cache is mounted unmount it
+	if [ "$MCACHE" == "$CACHE" ]; then # if mounted unmount it.
 		$BB umount /cache;
 		MCACHE;
 		if [ "$MCACHE" == "" ]; then
@@ -161,7 +151,7 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 			reason="cache is still mounted";
 			aswap="0";
 		fi
-	elif [ "$MCACHE" == "" ]; then # cache was not mounted
+	elif [ "$MCACHE" == "" ]; then # cache was not mounted.
 		aswap="1";
 		format="0";
 	fi
@@ -184,7 +174,7 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		$LOGCATI$LC "aswap skipped; $reason";
 	fi
 fi
-# FIXME: this needs to be reworked 
+# FIXME: this needs to be reworked.
 if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > $ZRS/reset;
 	echo "$CORE" > $ZRS/max_comp_streams;
@@ -204,20 +194,20 @@ elif [ "$ksm" == "1" ] && [ -e /sys/kernel/mm/ksm/run ]; then
 	# for the best all-rounder performance/battery ratio.
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan;
 	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs;
+	echo 1 > /sys/kernel/mm/ksm/deferred_timer;
 	echo 1 > /sys/kernel/mm/ksm/run;
 else    # just to be safe, still config them.
 	if [ -e /sys/kernel/mm/ksm/run ]; then
 		echo 100 > /sys/kernel/mm/ksm/pages_to_scan;
 		echo 500 > /sys/kernel/mm/ksm/sleep_millisecs;
+		echo 1 > /sys/kernel/mm/ksm/deferred_timer;
 		echo 0 > /sys/kernel/mm/ksm/run;
 	elif [ -e /sys/kernel/mm/uksm/run ]; then
 		echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs;
 		echo 0 > /sys/kernel/mm/uksm/run;
 	fi
 fi
-if [ "$lmk" == "0" ]; then
-	echo 0 > /sys/module/lowmemorykiller/parameters/minfree;
-elif [ "$lmk" == "1" ] && [ "$swait" == "1" ]; then
+if [ "$swait" == "1" ]; then
 	echo Y > /sys/module/lowmemorykiller/parameters/swap_wait;
 	if [ "$raid" == "1" ] || [ "$zswap" -gt "$PSIZE" ]; then
 		# use swap as much as posable if not you will get a lot more lag.
@@ -228,16 +218,16 @@ elif [ "$lmk" == "1" ] && [ "$swait" == "1" ]; then
 		echo $swaitp > /sys/module/lowmemorykiller/parameters/swap_wait_percent;
 	fi
 fi
-if [ "$oc" == "0" ]; then
-	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state;
-	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate;
+
+if [ "$oc" == "1" ]; then
+	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
+elif [ "$oc" == "0" ]; then
+	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
+	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
 fi
 if [ "$gfix" == "1" ]; then
 	echo 510000 > /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq;
-	echo 80 > /sys/devices/system/cpu/cpufreq/interactive/target_loads;
-fi
-if [ "$dtw" == "0" ]; then
-	echo 0 > /sys/devices/platform/spi-tegra114.2/spi_master/spi2/spi2.0/input/input0/wake_gesture;
+	echo "$gpfix" > /sys/devices/system/cpu/cpufreq/interactive/target_loads;
 fi
 if [ "$fs" == "0" ]; then
 	echo 0 > /sys/module/sync/parameters/fsync_enabled;
