@@ -1,0 +1,28 @@
+#!/system/bin/sh
+# i know of 3 things that like to kill battery
+# com.google.android.gms:snet :: cpu usage of this process is lowish but can get high also uses a good amount of I/O
+# and shoots cpu frequency to the max speed.
+# com.google.android.gms.persistent :: this is known to go bad but its rarely and when it does everyone knows it
+# com.google.android.gms.unstable :: this seems to only go bad if snet is killed/frozen and you will know when it goes bad
+
+L=/data/kill.log;
+PS=/system/etc/FI.d/lib/ps;
+date >> /data/kill.log;
+while sleep 10;
+do
+	$PS -A -o %cpu,cmd | grep com.google.android.gms | grep -v grep | grep -v dex2oat | while read percent process;
+	do
+		cpu_usage=${percent%.*}
+		if [ "$cpu_usage" -ge "20" ]; then
+			if [ "$process" == "com.google.android.gms:snet" ]; then
+				echo "Killing: $process CPU:$cpu_usage% $(date "+%H:%M:%S")" >> $L;
+				killall -9 "$process";
+			elif [ "$cpu_usage" -ge "80" ]; then
+				# Note this will kill unstable a lot but 
+				# killing it has little consequence
+				echo "Killing: $process CPU:$cpu_usage% $(date "+%H:%M:%S")" >> $L;
+				killall -9 "$process";
+			fi
+		fi
+	done
+done

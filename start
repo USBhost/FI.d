@@ -12,7 +12,7 @@
 	. /system/etc/FI.d/symbols;
 
 # Script pacific Symbols
-	LC="00start";
+	LC="start";
 
 # Wake lock is needed because if the system suspends
 # FI.d/init.d scripts will not run.
@@ -39,7 +39,3 @@
 	if [ ! -e /system/bin/sysinit ]; then
 		$BB run-parts /system/etc/init.d;
 	fi
-
-# Wait to continue
-	$LOGCATI$LC " 1min wait to continue ";
-	$BB sleep 1m;

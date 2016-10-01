@@ -10,7 +10,10 @@
 	. /system/etc/FI.d/symbols
 
 # Script pacific Symbols
-	LC="01afterboot"
+	LC="afterboot"
+
+# Give some time for the system to boot
+	$BB sleep 20;
 
 # overclocking.
 # CPU 2.5 ghz
@@ -40,6 +43,10 @@
 # Keep them the same as on linux. (debugging).
 echo 3000 > /proc/sys/vm/dirty_expire_centisecs
 echo 10 > /proc/sys/vm/dirty_background_ratio
+
+# LMK even it all out. (debugging).
+echo "25600,30720,35840,40960,46080,51200" > /sys/module/lowmemorykiller/parameters/minfree;
+echo "0,200,400,600,800,1000" > /sys/module/lowmemorykiller/parameters/adj;
 
 # Ultra Kernel Samepage Merging/Kernel Samepage Merging
 # You should not enable UKSM/KSM if your using zram
@@ -250,7 +257,15 @@ if [ "$fc" == "1" ]; then
 fi
 if [ -e "$CSWAP" ] && [ "$cswap" == "0" ]; then
 	CSIZE;
-	if [ "$CSIZE" >= "150" ]; then
+	if [ "$CSIZE" -ge "150" ]; then
 		rm $CSWAP;
 	fi
 fi
+
+# Turn on led
+echo 1 > /sys/class/htc_sensorhub/sensor_hub/led_en;
+sleep 2;
+echo 0 > /sys/class/htc_sensorhub/sensor_hub/led_en;
+
+# Allow suspend
+echo tmp_lock > /sys/power/wake_unlock && $LOGCATI$LC " Done ";

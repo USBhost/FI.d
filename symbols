@@ -7,7 +7,7 @@
 	set -x
 
 	# busybox location
-BB="/system/etc/BB/busybox";
+BB="/system/etc/FI.d/lib/busybox";
 	# zram's sys interface
 ZRS="/sys/block/zram0";
 	# zram's block device
