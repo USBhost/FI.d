@@ -37,11 +37,16 @@
 
 #   ------------------------<MEMORY>-----------------------   #
 
+# Keep them the same as on linux. (debugging).
+echo 3000 > /proc/sys/vm/dirty_expire_centisecs
+echo 10 > /proc/sys/vm/dirty_background_ratio
+
 # Ultra Kernel Samepage Merging/Kernel Samepage Merging
 # You should not enable UKSM/KSM if your using zram
 # because it wont work on swap/zram memory.
-# Note: this may or may not add lag.
-# 	only one is compiled in the kernel UKSM or KSM.
+# Note: This may or may not add lag.
+#	If you choose the wrong one that is not compiled in the kernel 
+#	the right one wil be selected.
 ## (0 = disabled) (1 = enabled) ##
 	uksm=0
 	ksm=0
@@ -145,23 +150,22 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		if [ "$MCACHE" == "" ]; then
 			$LOGCATI$LC " cache; unmount success ";
 			aswap="1";
-			format="1";
+			format="1"; # format is needed
 		elif [ "$MCACHE" == "$CACHE" ]; then
 			$LOGCATW$LC " cache; unmount failed ";
 			reason="cache is still mounted";
 			aswap="0";
 		fi
-	elif [ "$MCACHE" == "" ]; then # cache was not mounted.
+	elif [ "$MCACHE" == "" ]; then # cache was not mounted; can be swap.
 		aswap="1";
-		format="0";
+		format="0"; # do not format
 	fi
 	if [ "$aswap" == "1" ] && [ "$format" == "1" ]; then
-		$BB mkswap $CACHE || $LOGCATW$LC " cache; format failed ";
+		$BB mkswap $CACHE || $LOGCATW$LC " format failed ";
 	fi
 	if [ "$aswap" == "1" ]; then
 		$BB mount -t tmpfs -o rw,mode=1777 tmpfs /cache;
-		$BB swapon -p 1 $CACHE || 
-		$LOGCATW$LC " swapon failed ";
+		$BB swapon -p 1 $CACHE || $LOGCATW$LC " swapon failed ";
 		if [ "$raid" == "1" ]; then
 			echo 1 > $ZRS/reset;
 			echo 1 > $ZRS/max_comp_streams;
@@ -174,7 +178,6 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		$LOGCATI$LC "aswap skipped; $reason";
 	fi
 fi
-# FIXME: this needs to be reworked.
 if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	echo 1 > $ZRS/reset;
 	echo "$CORE" > $ZRS/max_comp_streams;
@@ -183,13 +186,23 @@ if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
 	$BB mkswap $ZRB;
 	$BB swapon $ZRB;
 fi
-if [ "$uksm" == "1" ] && [ -e /sys/kernel/mm/uksm/run ]; then
-	# uksm is slower than ksm but uksm can scan everything
+# select the compiled one
+if  [ "$uksm" == "1" ] || [ "$ksm" == "1" ]; then
+	if [ -e /sys/kernel/mm/uksm/run ]; then
+		uksm="1";
+		ksm="0";
+	elif [ -e /sys/kernel/mm/ksm/run ]; then
+		ksm="1";
+		uksm="0";
+	fi
+fi
+if [ "$uksm" == "1" ]; then
+	# uksm is slower than ksm but uksm can scan almost everything
 	# so make sleep_millisecs the most it can go. 1000 is the max.
 	# note: sleep_millisecs is not the same as in ksm.
 	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs;
 	echo 1 > /sys/kernel/mm/uksm/run;
-elif [ "$ksm" == "1" ] && [ -e /sys/kernel/mm/ksm/run ]; then
+elif [ "$ksm" == "1" ]; then
 	# these values where taken from google's low memory doc
 	# for the best all-rounder performance/battery ratio.
 	echo 100 > /sys/kernel/mm/ksm/pages_to_scan;
@@ -236,5 +249,8 @@ if [ "$fc" == "1" ]; then
 	echo 1 > /sys/kernel/fast_charge/force_fast_charge;
 fi
 if [ -e "$CSWAP" ] && [ "$cswap" == "0" ]; then
-	rm $CSWAP;
+	CSIZE;
+	if [ "$CSIZE" >= "150" ]; then
+		rm $CSWAP;
+	fi
 fi
