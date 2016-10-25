@@ -13,7 +13,7 @@
 	LC="afterboot"
 
 # Give some time for the system to boot
-	$BB sleep 20;
+	$BB sleep 30;
 
 # overclocking.
 # CPU 2.5 ghz
@@ -41,11 +41,11 @@
 #   ------------------------<MEMORY>-----------------------   #
 
 # Keep them the same as on linux. (debugging).
-echo 3000 > /proc/sys/vm/dirty_expire_centisecs
-echo 10 > /proc/sys/vm/dirty_background_ratio
+echo 3000 > /proc/sys/vm/dirty_expire_centisecs;
+echo 10 > /proc/sys/vm/dirty_background_ratio;
 
 # LMK even it all out. (debugging).
-echo "25600,30720,35840,40960,46080,51200" > /sys/module/lowmemorykiller/parameters/minfree;
+echo "25600,33280,40960,48640,56320,64000" > /sys/module/lowmemorykiller/parameters/minfree;
 echo "0,200,400,600,800,1000" > /sys/module/lowmemorykiller/parameters/adj;
 
 # Ultra Kernel Samepage Merging/Kernel Samepage Merging
@@ -240,7 +240,7 @@ if [ "$swait" == "1" ]; then
 fi
 
 if [ "$oc" == "1" ]; then
-	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap
+	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap # This must be set to oc
 elif [ "$oc" == "0" ]; then
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
 	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
