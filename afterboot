@@ -9,11 +9,13 @@
 # Load Symbols
 	. /system/etc/FI.d/symbols
 
-# Script pacific Symbols
+# Script pacific Symbol
 	LC="afterboot"
 
 # Give some time for the system to boot
+if [ "$1" != "s" ]; then
 	$BB sleep 30;
+fi
 
 # overclocking.
 # CPU 2.5 ghz
@@ -38,11 +40,13 @@
 ## (0 = default/disabled) (1 = enabled) ##
 	fc=1
 
-#   ------------------------<MEMORY>-----------------------   #
+#   -------------------------<TCP>-------------------------   #
 
-# Keep them the same as on linux. (debugging).
-echo 3000 > /proc/sys/vm/dirty_expire_centisecs;
-echo 10 > /proc/sys/vm/dirty_background_ratio;
+# Fix ping loops when ad blocking.
+iptables -I INPUT 1 -i lo -p tcp --dport 443 -j REJECT;
+
+#   ------------------------<MEMORY>-----------------------   #
+# FIXME: This part needs major documentation improvements.
 
 # LMK even it all out. (debugging).
 echo "25600,33280,40960,48640,56320,64000" > /sys/module/lowmemorykiller/parameters/minfree;
@@ -66,7 +70,7 @@ echo "0,200,400,600,800,1000" > /sys/module/lowmemorykiller/parameters/adj;
                   # 00=off will not enforce.
 
 # ZRAM Only.
-# "aswap" and "cswap" will be null.
+# "aswap" will be null.
 ## (0 = disabled) ##
 	zswap=256 # "zswap" is in MB.
 
@@ -108,7 +112,7 @@ fi
 MCACHE;
 $BB swapoff -a; # to keep things clean
 echo 1 > $ZRS/reset; # to keep things clean
-if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ] && [ "$zswap" == "0" ] && [ "$MCACHE" == "$CACHE" ]; then
+if [ "$cswap" -ge "1" ] && [ "$aswap" == "0" ] && [ "$MCACHE" == "$CACHE" ]; then
 	CSIZE;
 	if [ ! -e "$CSWAP" ] || [ "$CSIZE" != "$cswap" ]; then # to make or change cswap
 		# if cswap is more than the free space left in cache then this will loop on every reboot which is vary bad.
@@ -168,6 +172,7 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		format="0"; # do not format
 	fi
 	if [ "$aswap" == "1" ] && [ "$format" == "1" ]; then
+		# FIXME: stop the mount if the format failed.
 		$BB mkswap $CACHE || $LOGCATW$LC " format failed ";
 	fi
 	if [ "$aswap" == "1" ]; then
@@ -185,7 +190,7 @@ if [ "$zswap" == "0" ] && [ "$aswap" == "1" ]; then
 		$LOGCATI$LC "aswap skipped; $reason";
 	fi
 fi
-if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ]; then
+if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ] && [ "$cswap" == "0" ]; then
 	echo 1 > $ZRS/reset;
 	echo "$CORE" > $ZRS/max_comp_streams;
 	echo lz4 > $ZRS/comp_algorithm;
@@ -231,7 +236,7 @@ if [ "$swait" == "1" ]; then
 	echo Y > /sys/module/lowmemorykiller/parameters/swap_wait;
 	if [ "$raid" == "1" ] || [ "$zswap" -gt "$PSIZE" ]; then
 		# use swap as much as posable if not you will get a lot more lag.
-		# because in flounder if free memory goes vary low things will get vary lagy.
+		# because in flounder if free memory gets vary low things will get lagy!
 		echo 100 > /proc/sys/vm/swappiness;
 	fi
 	if [ "$swaitp" != "00" ]; then
@@ -242,6 +247,7 @@ fi
 if [ "$oc" == "1" ]; then
 	echo 2499000 > /sys/module/cpu_tegra/parameters/cpu_user_cap # This must be set to oc
 elif [ "$oc" == "0" ]; then
+	# the gpu starts at the max frequency so set it back to the stock frequency.
 	echo 1 > /sys/kernel/tegra_gpu/gpu_cap_state
 	echo 852000000 > /sys/kernel/tegra_gpu/gpu_cap_rate
 fi
