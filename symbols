@@ -29,12 +29,12 @@ LOGCATW="log -p w -t FI.d:";
 
 
 	# size of cswap
-CSIZE () 
+function CSIZE() 
 {
 	CSIZE="$($BB du -h $CSWAP | $BB grep -o $cswap)";
 }
 	# cache mount check
-MCACHE () 
+function MCACHE() 
 {
 	MCACHE="$($BB mount | $BB grep -o $CACHE)";
 }

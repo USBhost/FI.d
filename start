@@ -20,7 +20,7 @@
 	$LOGCATI$LC "$(id)";
 
 # Mount cache
-	# FIXME: 00start doesn't know if cache is swap.
+	# FIXME: start doesn't know if cache is swap.
 	MCACHE;
 	if [ "$MCACHE" == "" ]; then 
 		$BB mount -t auto -o rw $CACHE /cache;
@@ -35,13 +35,15 @@
 		$LOGCATI$LC " cache; is already mounted ";
 	fi
 
+# SuperSU system root
+# Note: this will need a modded SuperSU
+# that does not change app_process.
+	if [ ! -e /data/su.img ]; then
+		/system/xbin/bash /init.bash_SU.sh;
+	fi
+
 # Start init.d
 	if [ ! -e /system/bin/sysinit ]; then
 		$BB run-parts /system/etc/init.d;
 	fi
-
-# SuperSU system root
-	#if [ ! -e /data/su.img ]; then
-	#	/system/xbin/bash /init.bash_SU.sh;
-	#fi
 

@@ -10,7 +10,8 @@ PS=/system/etc/FI.d/lib/ps;
 date >> /data/kill.log;
 while sleep 10;
 do
-	$PS -A -o %cpu,cmd | grep com.google.android.gms | grep -v grep | grep -v dex2oat | while read percent process;
+	$PS -A -o %cpu,cmd # running it twice may make it more accurate.
+	$PS -A -o %cpu,cmd | grep com.google.android.gms | grep -v dex2oat | while read percent process;
 	do
 		cpu_usage=${percent%.*}
 		if [ "$cpu_usage" -ge "20" ]; then

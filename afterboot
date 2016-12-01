@@ -27,7 +27,7 @@ fi
 # this will increase battery life.
 # Note: but adding some lag.
 	gfix=0 ## (0 = disabled) (1 = enabled) ##
-	gpfix=70 # % until the cpu to jumps frequencies
+	gpfix=70 # % until the cpu jumps frequencies
 		 # (debugging).
 
 # FSync
@@ -37,72 +37,89 @@ fi
 	fs=1
 
 # USB Fast Charge.
-## (0 = default/disabled) (1 = enabled) ##
+## (0 = kernel default/disabled) (1 = enabled) ##
 	fc=1
 
 #   -------------------------<TCP>-------------------------   #
 
-# Fix ping loops when ad blocking.
+# Fix ping loops when adblocking.
 iptables -I INPUT 1 -i lo -p tcp --dport 443 -j REJECT;
 
 #   ------------------------<MEMORY>-----------------------   #
-# FIXME: This part needs major documentation improvements.
 
 # LMK even it all out. (debugging).
-echo "25600,33280,40960,48640,56320,64000" > /sys/module/lowmemorykiller/parameters/minfree;
-echo "0,200,400,600,800,1000" > /sys/module/lowmemorykiller/parameters/adj;
+#echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree;
+#echo "0,200,400,600,800,1000" > /sys/module/lowmemorykiller/parameters/adj;
 
 # Ultra Kernel Samepage Merging/Kernel Samepage Merging
-# You should not enable UKSM/KSM if your using zram
-# because it wont work on swap/zram memory.
-# Note: This may or may not add lag.
-#	If you choose the wrong one that is not compiled in the kernel 
-#	the right one wil be selected.
+# This tries to save memory by scaning/searching for pages that are the same.
+# Then it merges them into one page... saving memory. 
+# ---- NOTE ----
+# This does not work vary well when ZRAM/SWAP
+# because it can not scan swap.
+# This may or may not add lag.
+# This uses a small/medium amount of cpu.
 ## (0 = disabled) (1 = enabled) ##
-	uksm=0
 	ksm=0
 
 # SWAP wait.
-# This controls if you want swap to be at a certain percent until full before lmk starts killing.
-	swait=0 # (0 = system default/disabled) (1 = enabled)
-                # This will account free swap in lmk if enabled.
-	swaitp=00 # 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% until killing is allowed
-                  # 00=off will not enforce.
+# This controls if you want swap to be at a certain percent
+# full until lmk starts killing.
+# ---- NOTE ----
+# "swait" will account free swap in lmk if enabled.
+# 	(0 = kernel default/disabled) (1 = enabled)
+# "swaitp" will choose which percent killing is allowed.
+## 1=0% 2=50% 3=66% 4=75% 5=80% 10=90% 0=100% 00=off ##
+	swait=0
+	swaitp=00
 
-# ZRAM Only.
-# "aswap" will be null.
+# ZRAM (ONLY).
+# This make's a compressed ram block
+# that is used as swap to make more usable ram.
+# (Google ZRAM for more info)
+# ---- NOTE ----
+# "aswap" will be null if enabled.
+# This uses a fair amount of cpu.
+# "zswap" is in MB.
 ## (0 = disabled) ##
-	zswap=256 # "zswap" is in MB.
+	zswap=256
 
-# swap file in /cache.
-# "cswap" must not go over 150MB if /cache is formated to f2fs
-# Note: the size of /cache is 256MB.
+# /cache swap file.
+# This make's a swap file.
+# ---- NOTE ----
+# "cswap" must not go over 150MB if /cache is formated to f2fs.
+# "cswap" is in MB.
 ## (0 = disabled) ##
-	cswap=0 # "cswap" is in MB.
+	cswap=0
 
 # /cache all swap.
+# This will make /cache completely swap.
+# ---- NOTE ----
 # "cswap" will be null if enabled.
+# The size of /cache is 256MB.
 # Swap will be 256MB or 512MB if "raid" = 1 .
-# Note: cache will be formated to swap 
-# also your EMMC will be used a lot aka shorter lifespan.
+# Cache will be formated to swap.
+# Your EMMC will be used a lot aka shorter lifespan.
 ## (0 = disabled) (1 = enabled) ##
 	aswap=0
 
 # Raid 0
-# Splits memory evenly across "zswap" and "cswap".
-# In doing so makes "cswap" or "aswap" about ~100% faster 
-# but if it's too big you will get a lot of lag.
-# this can be used on "cswap" or "aswap".
+# This will Split memory evenly across "zswap" and "cswap"
+# that makes "cswap" or "aswap" about ~100% faster.
+# ---- NOTE ----
+# If it's set too big you will get a lot of lag.
+# This uses a small to fair amount of cpu.
+# This can be used on "cswap" or "aswap".
 ## (0 = disabled) (1 = enabled) ##
 	raid=0
 
 #   ------------------------<EXPERT>-----------------------   #
 
 # Load override
-# This is where you would put all your desired settings to (if you want to)
-# "/sdcard/override", so you dont't have to edit system on every update.
-# Note: be vary careful with what you put in this runs as root, 
-# so use with caution.
+# This is where you would put all your desired settings into (if you want to)
+# "/sdcard/override", so you don't have to edit system on every Kernel update.
+# Note: be vary careful with what you put in it, this runs as root. 
+# Use with caution!
 if [ -e "$ORID" ]; then
 	$LOGCATI$LC " $ORID; loading ";
 	. $ORID;
@@ -198,29 +215,21 @@ if [ "$zswap" -ge "1" ] && [ "$aswap" == "0" ] && [ "$cswap" == "0" ]; then
 	$BB mkswap $ZRB;
 	$BB swapon $ZRB;
 fi
-# select the compiled one
-if  [ "$uksm" == "1" ] || [ "$ksm" == "1" ]; then
+if  [ "$ksm" == "1" ]; then
 	if [ -e /sys/kernel/mm/uksm/run ]; then
-		uksm="1";
-		ksm="0";
+		# uksm is slower than ksm but uksm can scan almost everything
+		# so make sleep_millisecs the most it can go. 1000 is the max.
+		# note: sleep_millisecs is not the same as in ksm.
+		echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs;
+		echo 1 > /sys/kernel/mm/uksm/run;
 	elif [ -e /sys/kernel/mm/ksm/run ]; then
-		ksm="1";
-		uksm="0";
+		# these values where taken from google's low memory doc
+		# for the best all-rounder performance/battery ratio.
+		echo 100 > /sys/kernel/mm/ksm/pages_to_scan;
+		echo 500 > /sys/kernel/mm/ksm/sleep_millisecs;
+		echo 1 > /sys/kernel/mm/ksm/deferred_timer;
+		echo 1 > /sys/kernel/mm/ksm/run;
 	fi
-fi
-if [ "$uksm" == "1" ]; then
-	# uksm is slower than ksm but uksm can scan almost everything
-	# so make sleep_millisecs the most it can go. 1000 is the max.
-	# note: sleep_millisecs is not the same as in ksm.
-	echo 1000 > /sys/kernel/mm/uksm/sleep_millisecs;
-	echo 1 > /sys/kernel/mm/uksm/run;
-elif [ "$ksm" == "1" ]; then
-	# these values where taken from google's low memory doc
-	# for the best all-rounder performance/battery ratio.
-	echo 100 > /sys/kernel/mm/ksm/pages_to_scan;
-	echo 500 > /sys/kernel/mm/ksm/sleep_millisecs;
-	echo 1 > /sys/kernel/mm/ksm/deferred_timer;
-	echo 1 > /sys/kernel/mm/ksm/run;
 else    # just to be safe, still config them.
 	if [ -e /sys/kernel/mm/ksm/run ]; then
 		echo 100 > /sys/kernel/mm/ksm/pages_to_scan;
