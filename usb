@@ -1,0 +1,69 @@
+#!/system/bin/sh
+#
+# W.I.P. script, by USBhost. made for the Nexus 9.
+#
+
+#set -x
+
+#globle
+BB="/system/etc/FI.d/lib/busybox";
+MP="/data/media/0/USB";
+
+function helpd() {
+	supported=$(cat /proc/filesystems | grep -v nodev)
+	echo "
+Usage: -m BLOCK FILE-SYSTEM // like -m sda f2fs
+Note: if FILE-SYSTEM is not specialized (like -m sda )
+auto will be used insted.
+
+    -h -------------------- display this help
+    -u -------------------- umount drive
+    -m BLOCK FILE-SYSTEM -- mount drive
+
+Supported file systems: 
+${supported}"
+}
+
+# list mount points
+function listd() {
+	for f in /dev/block/sd*; do echo "${f##*/}"; done
+}
+
+# mount
+function mountd() {
+	mkdir -p /sdcard/${MP};
+	if [ "${3}" != "" ]; then
+		if [ "${3}" == "ntfs" ]; then
+			${BB} mount -t ${3} -o rw,umask=000,nls=utf8 /dev/block/${2} ${MP};
+		elif [ "${3}" == "exfat" ]; then
+			${BB} mount -t ${3} -o rw,umask=000 /dev/block/${2} ${MP};
+		else
+			${BB} mount -t ${3} -o rw /dev/block/${2} ${MP};
+		fi
+	else
+		${BB} mount -t auto -o rw /dev/block/${2} ${MP};
+	fi
+	echo "mounted"
+}
+
+# umount
+function umountd() {
+	${BB} umount ${MP};
+	echo "unmounted ${MP}"
+}
+
+while getopts lum:h opt; do
+    case $opt in
+        l) listd;
+            ;;
+        u) umountd;
+	   exit 0;
+            ;;
+        m) mountd ${@};
+            ;;
+        h) helpd;
+            ;;
+        *) helpd;
+            ;;
+    esac
+done

@@ -48,14 +48,14 @@ iptables -I INPUT 1 -i lo -p tcp --dport 443 -j REJECT;
 #   ------------------------<MEMORY>-----------------------   #
 
 # LMK even it all out. (debugging).
-#echo "18432,23040,27648,32256,36864,41472" > /sys/module/lowmemorykiller/parameters/minfree;
+#echo "20480,25600,30720,35840,40960,46080" > /sys/module/lowmemorykiller/parameters/minfree;
 #echo "0,200,400,600,800,1000" > /sys/module/lowmemorykiller/parameters/adj;
 
 # Ultra Kernel Samepage Merging/Kernel Samepage Merging
 # This tries to save memory by scaning/searching for pages that are the same.
 # Then it merges them into one page... saving memory. 
 # ---- NOTE ----
-# This does not work vary well when ZRAM/SWAP
+# This does not work vary well with ZRAM/SWAP
 # because it can not scan swap.
 # This may or may not add lag.
 # This uses a small/medium amount of cpu.

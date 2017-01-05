@@ -1,4 +1,8 @@
 #!/system/bin/sh
+#
+# W.I.P. script, by USBhost. made for the Nexus 9.
+#
+
 # i know of 3 things that like to kill battery
 # com.google.android.gms:snet :: cpu usage of this process is lowish but can get high also uses a good amount of I/O
 # and shoots cpu frequency to the max speed.
