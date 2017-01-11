@@ -7,18 +7,22 @@
 
 #globle
 BB="/system/etc/FI.d/lib/busybox";
-MP="/data/media/0/USB";
+MF="USB";
+MP="/data/media/0/${MF}";
+MFP="/sdcard/${MF}";
 
 function helpd() {
 	supported=$(cat /proc/filesystems | grep -v nodev)
 	echo "
 Usage: -m BLOCK FILE-SYSTEM // like -m sda f2fs
-Note: if FILE-SYSTEM is not specialized (like -m sda )
-auto will be used insted.
+Note: if FILE-SYSTEM is not specified (like -m sda )
+for mount auto will be used insted.
 
     -h -------------------- display this help
     -u -------------------- umount drive
     -m BLOCK FILE-SYSTEM -- mount drive
+    -r BLOCK FILE-SYSTEM -- repair drive
+    -f BLOCK FILE-SYSTEM -- format drive
 
 Supported file systems: 
 ${supported}"
@@ -31,7 +35,7 @@ function listd() {
 
 # mount
 function mountd() {
-	mkdir -p /sdcard/${MP};
+	mkdir -p ${MFP};
 	if [ "${3}" != "" ]; then
 		if [ "${3}" == "ntfs" ]; then
 			${BB} mount -t ${3} -o rw,umask=000,nls=utf8 /dev/block/${2} ${MP};
@@ -43,23 +47,79 @@ function mountd() {
 	else
 		${BB} mount -t auto -o rw /dev/block/${2} ${MP};
 	fi
-	echo "mounted"
+	echo "Mounted: ${MP}";
+	echo "Access here: ${MFP}";
 }
 
 # umount
 function umountd() {
-	${BB} umount ${MP};
-	echo "unmounted ${MP}"
+	${BB} umount -l ${MP};
+	echo "Unmounted ${MP}";
 }
 
-while getopts lum:h opt; do
+# format tools
+function formatd() {
+	f2fs="/system/bin/make_f2fs";
+	ext4="/system/bin/make_ext4fs";
+
+	if [ "${3}" != "" ]; then
+		umountd;
+		if [ "${3}" == "f2fs" ]; then
+			${f2fs} /dev/block/${2};
+			mountd - ${2} f2fs;
+			chmod -R 777 ${MP};
+		elif [ "${3}" == "ext4" ]; then
+			${ext4} /dev/block/${2};
+			mountd - ${2} ext4;
+			chmod -R 777 ${MP};
+		elif [ "${3}" == "ntfs" ]; then
+			echo "not supported yet";
+		elif [ "${3}" == "vfat" ]; then
+			echo "not supported yet";
+		elif [ "${3}" == "exfat" ]; then
+			echo "not supported yet";
+		fi
+	fi
+}
+
+# repair tools
+function repaird() {
+	f2fs="/system/bin/fsck.f2fs";
+	ext="/system/bin/e2fsck";
+
+	if [ "${3}" != "" ]; then
+		umountd;
+		if [ "${3}" == "f2fs" ]; then
+			${f2fs} -a /dev/block/${2};
+		elif [ "${3}" == "ext4" ]; then
+			${ext} -vy /dev/block/${2};
+		elif [ "${3}" == "ntfs" ]; then
+			echo "not supported yet";
+		elif [ "${3}" == "vfat" ]; then
+			echo "not supported yet";
+		elif [ "${3}" == "exfat" ]; then
+			echo "not supported yet";
+		fi
+	fi
+}
+
+if [ "$(whoami)" != "root" ]; then
+	echo "ROOT is required"
+	echo "use usb -h for help"
+	exit 1
+fi
+
+while getopts lum:f:r:h opt; do
     case $opt in
         l) listd;
             ;;
         u) umountd;
-	   exit 0;
             ;;
         m) mountd ${@};
+            ;;
+        f) formatd ${@};
+            ;;
+        r) repaird ${@};
             ;;
         h) helpd;
             ;;
