@@ -124,6 +124,7 @@ if [ -e "$ORID" ]; then
 	$LOGCATI$LC " $ORID; loading ";
 	. $ORID;
 else
+	# we must skip or an error will close the script.
 	$LOGCATI$LC " no override; skipping ";
 fi
 MCACHE;
@@ -283,4 +284,6 @@ sleep 2;
 echo 0 > /sys/class/htc_sensorhub/sensor_hub/led_en;
 
 # Allow suspend
-echo tmp_lock > /sys/power/wake_unlock && $LOGCATI$LC " Done ";
+echo fi_lock > /sys/power/wake_unlock;
+
+$LOGCATI$LC " Done ";

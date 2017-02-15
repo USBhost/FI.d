@@ -24,29 +24,34 @@ for mount auto will be used insted.
     -r BLOCK FILE-SYSTEM -- repair drive
     -f BLOCK FILE-SYSTEM -- format drive
 
-Supported file systems: 
+Supported file systems (to mount): 
 ${supported}"
 }
 
 # list mount points
 function listd() {
-	for f in /dev/block/sd*; do echo "${f##*/}"; done
+	for f in /dev/block/sd*; 
+	do 
+		echo "${f##*/}"; 
+	done
 }
 
 # mount
 function mountd() {
 	mkdir -p ${MFP};
+	
 	if [ "${3}" != "" ]; then
 		if [ "${3}" == "ntfs" ]; then
-			${BB} mount -t ${3} -o rw,umask=000,nls=utf8 /dev/block/${2} ${MP};
+			${SUPERUS} ${BB} mount -t ${3} -o rw,umask=000,nls=utf8 /dev/block/${2} ${MP};
 		elif [ "${3}" == "exfat" ]; then
-			${BB} mount -t ${3} -o rw,umask=000 /dev/block/${2} ${MP};
+			${SUPERUS} ${BB} mount -t ${3} -o rw,umask=000 /dev/block/${2} ${MP};
 		else
-			${BB} mount -t ${3} -o rw /dev/block/${2} ${MP};
+			${SUPERUS} ${BB} mount -t ${3} -o rw /dev/block/${2} ${MP};
 		fi
 	else
-		${BB} mount -t auto -o rw /dev/block/${2} ${MP};
+		${SUPERUS} ${BB} mount -t auto -o rw /dev/block/${2} ${MP};
 	fi
+	
 	echo "Mounted: ${MP}";
 	echo "Access here: ${MFP}";
 }
@@ -54,7 +59,7 @@ function mountd() {
 # umount
 function umountd() {
 	${BB} umount -l ${MP};
-	echo "Unmounted ${MP}";
+	echo "Unmounted: ${MP}";
 }
 
 # format tools
@@ -64,6 +69,7 @@ function formatd() {
 
 	if [ "${3}" != "" ]; then
 		umountd;
+		
 		if [ "${3}" == "f2fs" ]; then
 			${f2fs} /dev/block/${2};
 			mountd - ${2} f2fs;
@@ -86,12 +92,23 @@ function formatd() {
 function repaird() {
 	f2fs="/system/bin/fsck.f2fs";
 	ext="/system/bin/e2fsck";
+	
+	function extcheck() {
+		if [ "${3}" == "ext2" ] ||
+			[ "${3}" == "ext3" ] ||
+			[ "${3}" == "ext4" ]; then
+			echo "dont use ${3}, use ext instead";
+			exit 1;
+		fi
+	}
 
 	if [ "${3}" != "" ]; then
+		extcheck ${@};
 		umountd;
+		
 		if [ "${3}" == "f2fs" ]; then
 			${f2fs} -a /dev/block/${2};
-		elif [ "${3}" == "ext4" ]; then
+		elif [ "${3}" == "ext" ]; then
 			${ext} -vy /dev/block/${2};
 		elif [ "${3}" == "ntfs" ]; then
 			echo "not supported yet";
@@ -104,9 +121,13 @@ function repaird() {
 }
 
 if [ "$(whoami)" != "root" ]; then
-	echo "ROOT is required"
-	echo "use usb -h for help"
-	exit 1
+	echo "ROOT is required";
+	echo "use usb -h for help";
+	exit 1;
+fi
+
+if [ "$(su -v | grep -o SUPERSU)" == "SUPERSU" ]; then
+	SUPERUS="su --mount-master -c";
 fi
 
 while getopts lum:f:r:h opt; do
