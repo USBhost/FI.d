@@ -12,10 +12,26 @@
 # Script pacific Symbol
 	LC="afterboot"
 
+#   -----------------------<Start>------------------------   #
+
+# Fix FC of startup wizard
+if [ ! -f /data/Zmlyc3Rib290.FI ]; then
+	$LOGCATI$LC "Enable wifi for first boot";
+	svc wifi enable;
+	touch /data/Zmlyc3Rib290.FI;
+fi
+
 # Give some time for the system to boot
 if [ "$1" != "s" ]; then
 	$BB sleep 30;
 fi
+
+#   -------------------------<TCP>-------------------------   #
+
+# Fix ping loops when adblocking.
+iptables -I INPUT 1 -i lo -p tcp --dport 443 -j REJECT;
+
+#   --------------------<User Options>--------------------   #
 
 # overclocking.
 # CPU 2.5 ghz
@@ -39,11 +55,6 @@ fi
 # USB Fast Charge.
 ## (0 = kernel default/disabled) (1 = enabled) ##
 	fc=1
-
-#   -------------------------<TCP>-------------------------   #
-
-# Fix ping loops when adblocking.
-iptables -I INPUT 1 -i lo -p tcp --dport 443 -j REJECT;
 
 #   ------------------------<MEMORY>-----------------------   #
 
